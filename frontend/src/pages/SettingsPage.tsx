@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Settings, User, Shield, Bell, Palette, Globe, Key, Trash2, Save, X } from 'lucide-react'
+import { Settings, User, Shield, Bell, Palette, Save, X } from 'lucide-react'
 
 interface UserSettings {
   name: string

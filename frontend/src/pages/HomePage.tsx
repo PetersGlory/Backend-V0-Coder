@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ArrowRight, Code, Database, Zap, Shield, Rocket, Sparkles, CheckCircle, Users, Globe } from 'lucide-react'
+import { ArrowRight, Code, Database, Shield, Rocket, Sparkles, CheckCircle, Users } from 'lucide-react'
 
 export default function HomePage() {
   const features = [

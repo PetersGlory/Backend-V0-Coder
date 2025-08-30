@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Clock, Search, Filter, Download, Eye, Trash2, Calendar, Code, Database } from 'lucide-react'
+import { Clock, Search, Download, Eye, Trash2, Calendar, Database } from 'lucide-react'
 
 interface HistoryItem {
   id: string
@@ -58,14 +58,14 @@ export default function HistoryPage() {
     }
   }
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'completed': return <Code className="w-4 h-4" />
-      case 'failed': return <Trash2 className="w-4 h-4" />
-      case 'in-progress': return <Clock className="w-4 h-4" />
-      default: return <Clock className="w-4 h-4" />
-    }
-  }
+  // const getStatusIcon = (status: string) => {
+  //   switch (status) {
+  //     case 'completed': return <Code className="w-4 h-4" />
+  //     case 'failed': return <Trash2 className="w-4 h-4" />
+  //     case 'in-progress': return <Clock className="w-4 h-4" />
+  //     default: return <Clock className="w-4 h-4" />
+  //   }
+  // }
 
   return (
     <div className="min-h-screen bg-gray-50">

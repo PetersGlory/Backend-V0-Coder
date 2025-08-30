@@ -3,7 +3,7 @@ import { useBackendSpec } from '../contexts/BackendSpecContext'
 import PromptInput from '../components/PromptInput'
 import SpecDisplay from '../components/SpecDisplay'
 import ScaffoldButton from '../components/ScaffoldButton'
-import { Loader2, CheckCircle, AlertCircle, Sparkles, Clock, FolderOpen, MessageSquare, Settings, Zap, History, BookOpen, Code } from 'lucide-react'
+import { Loader2, CheckCircle, AlertCircle, Sparkles, Clock, MessageSquare, Settings, Zap, History, BookOpen, Code } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 
 export default function GeneratorPage() {

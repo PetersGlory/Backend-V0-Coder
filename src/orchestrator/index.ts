@@ -5,13 +5,25 @@ import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
 import morgan from 'morgan';
-import axios from 'axios';
+import { pipeline } from "@huggingface/transformers";
 import fs from 'fs';
 import path from 'path';
 import { BackendSpec, GenerationRequest, GenerationResponse, ScaffoldRequest, ScaffoldResponse } from '../types/index.js';
 
-const HF_API_URL = process.env.HF_API_URL || 'https://api-inference.huggingface.co/models/bigcode/starcoder2-15b';
-const HF_TOKEN = process.env.HF_TOKEN || '';
+// Initialize the local transformer pipeline
+let generator: any = null;
+
+async function initializeGenerator() {
+  try {
+    console.log('Initializing local transformer pipeline...');
+    generator = await pipeline('text-generation',
+  'Xenova/Qwen1.5-0.5B-Chat');
+    console.log('Local transformer pipeline initialized successfully');
+  } catch (error) {
+    console.error('Failed to initialize local transformer pipeline:', error);
+    throw error;
+  }
+}
 
 const systemPrompt = `You are BackendV0, an expert backend architect and code generator.
 Given a natural-language request, produce a STRICT JSON spec describing:
@@ -24,22 +36,31 @@ Given a natural-language request, produce a STRICT JSON spec describing:
 Return ONLY minified JSON. No prose.`;
 
 async function promptToSpec(userPrompt: string): Promise<BackendSpec> {
-  if (!HF_TOKEN) throw new Error('HF_TOKEN missing');
+  if (!generator) {
+    throw new Error('Local transformer pipeline not initialized');
+  }
 
-  const body = {
-    inputs: `${systemPrompt}\n\nUSER:\n${userPrompt}`,
-    parameters: { max_new_tokens: 1024, temperature: 0.1 }
-  };
-  const res = await axios.post(HF_API_URL, body, {
-    headers: { Authorization: `Bearer ${HF_TOKEN}` },
-    timeout: 30000
-  });
-  const text = Array.isArray(res.data) ? res.data[0]?.generated_text ?? '' : String(res.data);
-  const match = text.match(/\{[\s\S]*\}/);
-  if (!match) throw new Error('No valid JSON found in response');
-  const spec = JSON.parse(match[0].trim()) as BackendSpec;
-  validateSpec(spec);
-  return spec;
+  try {
+    const fullPrompt = `${systemPrompt}\n\nUSER:\n${userPrompt}`;
+    const output = await generator(fullPrompt, {
+      max_new_tokens: 512,
+      temperature: 0.1
+    });
+    
+    const generatedText = output[0].generated_text;
+    const match = generatedText.match(/\{[\s\S]*\}/);
+    
+    if (!match) {
+      throw new Error('No valid JSON found in generated response');
+    }
+    
+    const spec = JSON.parse(match[0].trim()) as BackendSpec;
+    validateSpec(spec);
+    return spec;
+  } catch (error) {
+    console.error('Error in promptToSpec:', error);
+    throw new Error(`Failed to generate backend specification: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
 }
 
 function validateSpec(spec: any): void {
@@ -283,7 +304,23 @@ app.post('/scaffold', async (req: Request, res: Response) => {
   }
 });
 
+// Initialize the server
 const port = Number(process.env.PORT || 4000);
-app.listen(port, () => {
-  console.log(`Orchestrator listening on http://localhost:${port}`);
-});
+
+async function startServer() {
+  try {
+    // Initialize the local transformer pipeline first
+    await initializeGenerator();
+    
+    // Start the HTTP server
+    app.listen(port, () => {
+      console.log(`Orchestrator listening on http://localhost:${port}`);
+      console.log('Local transformer pipeline is ready for backend generation');
+    });
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  }
+}
+
+startServer();

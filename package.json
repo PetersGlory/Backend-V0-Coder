@@ -14,6 +14,8 @@
   },
   "dependencies": {
     "@huggingface/transformers": "^3.7.2",
+    "@types/archiver": "^6.0.3",
+    "archiver": "^7.0.1",
     "axios": "^1.6.0",
     "compression": "^1.7.4",
     "cors": "^2.8.5",

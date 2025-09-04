@@ -29,20 +29,43 @@ export default function ScaffoldButton({
         body: JSON.stringify({ spec }),
       })
 
-      const data = await response.json()
-
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to scaffold project')
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to scaffold project')
       }
 
-      if (data.success) {
+      // Check if response is a zip file
+      const contentType = response.headers.get('content-type')
+      if (contentType && contentType.includes('application/zip')) {
+        // Create blob and download
+        const blob = await response.blob()
+        const url = window.URL.createObjectURL(blob)
+        
+        // Get filename from Content-Disposition header
+        const contentDisposition = response.headers.get('content-disposition')
+        let filename = `${getProjectName()}.zip`
+        if (contentDisposition) {
+          const filenameMatch = contentDisposition.match(/filename="(.+)"/)
+          if (filenameMatch) {
+            filename = filenameMatch[1]
+          }
+        }
+        
+        // Create download link and trigger download
+        const link = document.createElement('a')
+        link.href = url
+        link.download = filename
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        window.URL.revokeObjectURL(url)
+        
         onScaffoldComplete({
           success: true,
-          message: 'Project scaffolded successfully!',
-          localPath: data.localPath,
+          message: 'Project downloaded successfully!',
         })
       } else {
-        throw new Error('Invalid response from server')
+        throw new Error('Invalid response format from server')
       }
     } catch (error) {
       onScaffoldComplete({

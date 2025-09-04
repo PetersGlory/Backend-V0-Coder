@@ -21,7 +21,7 @@ export default function ScaffoldButton({
     onScaffoldStart()
 
     try {
-      const response = await fetch('/api/scaffold', {
+      const response = await fetch('https://v0-coder.onrender.com/api/scaffold', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

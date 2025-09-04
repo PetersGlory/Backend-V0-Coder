@@ -17,7 +17,7 @@ export default function PromptInput() {
     setSpec(null)
 
     try {
-      const response = await fetch('/api/spec', {
+      const response = await fetch('https://v0-coder.onrender.com/api/spec', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

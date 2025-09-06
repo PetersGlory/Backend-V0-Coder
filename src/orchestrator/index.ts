@@ -10,6 +10,11 @@ import path from 'path';
 import { BackendSpec, GenerationRequest, GenerationResponse, ScaffoldRequest, ScaffoldResponse } from '../types/index.js';
 import { z } from 'zod';
 import archiver from 'archiver';
+import session from 'express-session';
+import { syncDatabase } from '../models/index.js';
+import authRoutes from '../routes/auth.js';
+import historyRoutes from '../routes/history.js';
+import { optionalAuth } from '../middleware/auth.js';
 
 // Enhanced validation schemas with Zod
 const SpecSchema = z.object({
@@ -100,6 +105,19 @@ class BackendGenerator {
       } catch (error) {
         console.error(`Attempt ${attempt + 1} failed:`, error);
         
+        // If it's a JSON parsing error, try with a simpler prompt
+        if (error instanceof Error && error.message.includes('JSON')) {
+          console.log('JSON parsing error detected, trying with simplified prompt...');
+          try {
+            const simplePrompt = `Generate a simple backend specification for: ${prompt}. Return only valid JSON.`;
+            const spec = await this.callGemini(simplePrompt);
+            const validated = SpecSchema.parse(spec);
+            return validated;
+          } catch (simpleError) {
+            console.error('Simple prompt also failed:', simpleError);
+          }
+        }
+        
         if (attempt === retries - 1) {
           throw new Error('All attempts failed to generate valid specification');
         }
@@ -134,6 +152,9 @@ class BackendGenerator {
     });
 
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Gemini API Error:', response.status, response.statusText);
+      console.error('Error details:', errorText);
       throw new Error(`Gemini API Error: ${response.status} ${response.statusText}`);
     }
 
@@ -141,11 +162,16 @@ class BackendGenerator {
     const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text;
     
     if (!generatedText) {
+      console.error('Gemini API response:', JSON.stringify(data, null, 2));
       throw new Error('Gemini API returned no text');
     }
 
+    console.log('Raw Gemini response:', generatedText.substring(0, 500) + '...');
+
     // Clean and parse the response
     const cleanedText = this.cleanJsonResponse(generatedText);
+    console.log('Cleaned JSON:', cleanedText.substring(0, 500) + '...');
+    
     return JSON.parse(cleanedText);
   }
   
@@ -161,7 +187,44 @@ class BackendGenerator {
       throw new Error('No JSON object found in response');
     }
     
-    return text.slice(jsonStart, jsonEnd).trim();
+    let cleanedText = text.slice(jsonStart, jsonEnd).trim();
+    
+    // More robust JSON cleaning
+    try {
+      // First, try to parse as-is to see if it's already valid
+      JSON.parse(cleanedText);
+      return cleanedText;
+    } catch (error) {
+      // If parsing fails, try to fix common issues
+      console.log('JSON parsing failed, attempting to clean...');
+      
+      // Fix common escaping issues
+      cleanedText = cleanedText
+        // Fix unescaped quotes in string values (but not in keys)
+        .replace(/"([^"]*)"\s*:\s*"([^"]*[^\\])"([^,}\]]*)/g, (match, key, value, rest) => {
+          const escapedValue = value
+            .replace(/\\/g, '\\\\')
+            .replace(/"/g, '\\"')
+            .replace(/\n/g, '\\n')
+            .replace(/\r/g, '\\r')
+            .replace(/\t/g, '\\t');
+          return `"${key}": "${escapedValue}"${rest}`;
+        })
+        // Fix unescaped backslashes
+        .replace(/\\(?!["\\/bfnrt])/g, '\\\\')
+        // Fix unescaped forward slashes in URLs
+        .replace(/([^\\])\//g, '$1\\/');
+      
+      // Try parsing again
+      try {
+        JSON.parse(cleanedText);
+        return cleanedText;
+      } catch (secondError) {
+        console.error('JSON cleaning failed:', secondError);
+        console.error('Cleaned text:', cleanedText);
+        throw new Error(`Failed to parse JSON after cleaning: ${secondError instanceof Error ? secondError.message : 'Unknown error'}`);
+      }
+    }
   }
   
   private getSystemPrompt(): string {
@@ -1269,17 +1332,37 @@ CMD ["uvicorn","app.main:app","--host","0.0.0.0","--port","8000"]`;
 
 // HTTP server setup
 const app = express();
-app.use(cors({ origin: process.env.CORS_ORIGIN || true }));
+app.use(cors({ 
+  origin: process.env.CORS_ORIGIN || true,
+  credentials: true 
+}));
 app.use(helmet());
 app.use(compression());
 app.use(morgan('dev'));
 app.use(express.json({ limit: '1mb' }));
 
+// Session configuration
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'your-secret-key',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+  }
+}));
+
 // Health check
 app.get('/health', (_req: Request, res: Response) => res.json({ ok: true }));
 
 // API Routes
-app.post('/api/generate-spec', async (req: Request, res: Response) => {
+// Authentication routes
+app.use('/api/auth', authRoutes);
+
+// History routes
+app.use('/api/history', historyRoutes);
+app.post('/api/generate-spec', optionalAuth, async (req: any, res: Response) => {
   try {
     const { prompt } = req.body;
     
@@ -1288,6 +1371,26 @@ app.post('/api/generate-spec', async (req: Request, res: Response) => {
     }
     
     const spec = await promptToSpec(prompt);
+    
+    // Save to history if user is authenticated
+    if (req.user) {
+      try {
+        const { History } = await import('../models/index.js');
+        await History.create({
+          user_id: req.user.id,
+          prompt,
+          spec,
+          project_name: (spec as any).metadata?.name || `backend-${spec.stack.language}-${Date.now()}`,
+          stack_language: spec.stack.language,
+          stack_framework: spec.stack.framework,
+          entities_count: spec.entities?.length || 0,
+        });
+      } catch (historyError) {
+        console.error('Failed to save to history:', historyError);
+        // Don't fail the request if history saving fails
+      }
+    }
+    
     res.json(spec);
   } catch (error) {
     console.error('Generation error:', error);
@@ -1359,14 +1462,21 @@ const port = Number(process.env.PORT || 4000);
 
 async function startServer() {
   try {
+    // Initialize database
+    await syncDatabase();
+    
     // Start the HTTP server
     app.listen(port, () => {
-      console.log(`🚀 Enhanced Backend V0 Orchestrator listening on http://localhost:${port}`);
+      console.log(`🚀 EaseArch Backend Generator listening on http://localhost:${port}`);
       console.log('✨ Features:');
-      console.log('   - Enhanced AI generation with multiple models');
+      console.log('   - AI-powered backend generation with Gemini');
+      console.log('   - User authentication and profile management');
+      console.log('   - History tracking and download management');
+      console.log('   - MySQL database with Sequelize ORM');
       console.log('   - Zod validation schemas');
       console.log('   - Comprehensive project scaffolding');
       console.log('   - Production-ready Node.js and Python backends');
+      console.log('   - Automatic ZIP file downloads');
     });
   } catch (error) {
     console.error('Failed to start server:', error);
@@ -1488,6 +1598,8 @@ RULES:
 6. Consider security implications (auth, permissions, rate limiting)
 7. Return ONLY the JSON object, no explanations or markdown formatting
 8. Generate Powerful backend code
+9. Ensure all string values are properly escaped for JSON (use \\" for quotes, \\n for newlines, etc.)
+10. Do not include any text before or after the JSON object
 
 EXAMPLES:
 

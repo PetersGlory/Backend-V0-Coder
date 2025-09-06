@@ -1366,7 +1366,6 @@ async function startServer() {
       console.log('   - Enhanced AI generation with multiple models');
       console.log('   - Zod validation schemas');
       console.log('   - Comprehensive project scaffolding');
-      console.log('   - Advanced error handling and retry logic');
       console.log('   - Production-ready Node.js and Python backends');
     });
   } catch (error) {
@@ -1380,7 +1379,7 @@ startServer();
 
 
 // Enhanced system prompt with better structure and examples
-const SYSTEM_PROMPT = `You are BackendV0, an expert backend architect and code generator.
+const SYSTEM_PROMPT = `You are EaseArch, an expert backend architect and code generator.
 
 TASK: Convert natural language requirements into a structured JSON specification for backend generation.
 
@@ -1488,6 +1487,7 @@ RULES:
 5. Include reasonable defaults for environment variables
 6. Consider security implications (auth, permissions, rate limiting)
 7. Return ONLY the JSON object, no explanations or markdown formatting
+8. Generate Powerful backend code
 
 EXAMPLES:
 
@@ -1537,7 +1537,7 @@ function scaffoldFromSpec(spec: BackendSpec, outDir: string) {
 
 function scaffoldNode(spec: BackendSpec, outDir: string) {
   const pkg = {
-    name: spec.name || 'backendv0-node',
+    name: spec.name || 'EaseArch-node',
     type: 'module',
     scripts: {
       dev: 'tsx src/server.ts',

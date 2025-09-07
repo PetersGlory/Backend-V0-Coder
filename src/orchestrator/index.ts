@@ -14,7 +14,9 @@ import session from 'express-session';
 import { syncDatabase } from '../models/index.js';
 import authRoutes from '../routes/auth.js';
 import historyRoutes from '../routes/history.js';
+import pricingRoutes from '../routes/pricing.js';
 import { optionalAuth } from '../middleware/auth.js';
+import { enforceUsageLimit } from '../middleware/subscription.js';
 
 // Enhanced validation schemas with Zod
 const SpecSchema = z.object({
@@ -1362,7 +1364,9 @@ app.use('/api/auth', authRoutes);
 
 // History routes
 app.use('/api/history', historyRoutes);
-app.post('/api/generate-spec', optionalAuth, async (req: any, res: Response) => {
+// Pricing/subscriptions
+app.use('/api/billing', pricingRoutes);
+app.post('/api/generate-spec', optionalAuth, enforceUsageLimit, async (req: any, res: Response) => {
   try {
     const { prompt } = req.body;
     
@@ -1388,6 +1392,15 @@ app.post('/api/generate-spec', optionalAuth, async (req: any, res: Response) => 
       } catch (historyError) {
         console.error('Failed to save to history:', historyError);
         // Don't fail the request if history saving fails
+      }
+    }
+
+    // Increment usage if subscription is present
+    if (req.subscription) {
+      try {
+        await req.subscription.increment('used_requests');
+      } catch (incErr) {
+        console.error('Failed to increment usage:', incErr);
       }
     }
     

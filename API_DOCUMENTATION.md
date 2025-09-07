@@ -9,6 +9,7 @@ EaseArch is an AI-powered backend generator that creates production-ready Node.j
 - 📚 History tracking and download management
 - 🗄️ MySQL database with Sequelize ORM
 - 📦 Automatic ZIP file generation and download
+- 💳 Pricing plans and subscriptions (Free, Pro, Team)
 - 🔒 JWT-based authentication
 - ✅ Zod validation schemas
 
@@ -260,6 +261,44 @@ Generate and download project files as ZIP.
 
 **Response:** ZIP file download
 
+### Billing Routes (`/api/billing`)
+
+#### GET `/api/billing/plans`
+List available pricing plans.
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "plans": [
+      {
+        "code": "free",
+        "name": "Free",
+        "price_cents": 0,
+        "interval": "monthly",
+        "request_limit": 10,
+        "priority_support": false
+      }
+    ]
+  }
+}
+```
+
+#### POST `/api/billing/subscribe` (auth required)
+Subscribe current user to a plan.
+
+**Request Body:**
+```json
+{ "plan_code": "pro" }
+```
+
+#### GET `/api/billing/me` (auth required)
+Get the current user's subscription details.
+
+#### POST `/api/billing/cancel` (auth required)
+Set the current subscription to not renew after the period ends.
+
 ## Environment Variables
 
 Create a `.env` file with the following variables:
@@ -340,5 +379,5 @@ All API responses follow this format:
 
 ## Rate Limiting
 
-- 100 requests per 15 minutes per IP
-- Configurable via environment variables
+- 100 requests per 15 minutes per IP (configurable)
+- Subscription usage limits per billing period are enforced on `/api/generate-spec`

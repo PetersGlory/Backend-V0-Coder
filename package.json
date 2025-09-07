@@ -1,5 +1,5 @@
 {
-  "name": "backend-v0-mvp",
+  "name": "ease-arch",
   "version": "1.0.0",
   "description": "AI-powered backend generator like Vercel's V0",
   "type": "module",

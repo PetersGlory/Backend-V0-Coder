@@ -21,7 +21,7 @@ export const requireActiveSubscription = async (req: AuthedRequest, res: Respons
     }
 
     const now = new Date();
-    if (subscription.status !== 'active' || now > subscription.current_period_end) {
+    if ((subscription as any).status !== 'active' || now > (subscription as any).current_period_end) {
       return res.status(402).json({ success: false, error: 'Subscription inactive or expired' });
     }
 
@@ -43,11 +43,11 @@ export const enforceUsageLimit = async (req: AuthedRequest, res: Response, next:
       include: [{ model: Plan, as: 'plan' }],
     });
 
-    if (!subscription || subscription.status !== 'active') return next();
+    if (!subscription || (subscription as any).status !== 'active') return next();
 
     // Reset if period ended
     const now = new Date();
-    if (now > subscription.current_period_end) {
+    if (now > (subscription as any).current_period_end) {
       const planInterval = ((subscription as any).plan?.interval as ('monthly' | 'yearly' | undefined));
       const periodMs: number = planInterval === 'yearly' ? (365 * 24 * 60 * 60 * 1000) : (30 * 24 * 60 * 60 * 1000);
       await subscription.update({
@@ -58,7 +58,7 @@ export const enforceUsageLimit = async (req: AuthedRequest, res: Response, next:
     }
 
     const limit: number = ((subscription as any).plan?.request_limit ?? 0) as number;
-    if (limit > 0 && subscription.used_requests >= limit) {
+    if (limit > 0 && (subscription as any).used_requests >= limit) {
       return res.status(429).json({ success: false, error: 'Usage limit exceeded for current period' });
     }
 

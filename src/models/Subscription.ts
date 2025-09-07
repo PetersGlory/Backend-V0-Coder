@@ -16,17 +16,8 @@ export interface SubscriptionAttributes {
 
 export interface SubscriptionCreationAttributes extends Optional<SubscriptionAttributes, 'id' | 'status' | 'renews' | 'used_requests' | 'current_period_start' | 'current_period_end' | 'created_at' | 'updated_at'> {}
 
-class Subscription extends Model<SubscriptionAttributes, SubscriptionCreationAttributes> implements SubscriptionAttributes {
-  public id!: number;
-  public user_id!: number;
-  public plan_id!: number;
-  public status!: 'active' | 'canceled' | 'expired' | 'past_due';
-  public current_period_start!: Date;
-  public current_period_end!: Date;
-  public renews!: boolean;
-  public used_requests!: number;
-  public readonly created_at!: Date;
-  public readonly updated_at!: Date;
+class Subscription extends Model<SubscriptionAttributes, SubscriptionCreationAttributes> {
+  // Remove all public field declarations to avoid shadowing Sequelize getters/setters
 }
 
 Subscription.init(

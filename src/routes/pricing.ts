@@ -27,7 +27,7 @@ router.post('/subscribe', authenticateToken, async (req: Request, res: Response)
     if (!plan) return res.status(404).json({ success: false, error: 'Plan not found' });
 
     const now = new Date();
-    const periodMs = plan.interval === 'yearly' ? 365 * 24 * 60 * 60 * 1000 : 30 * 24 * 60 * 60 * 1000;
+    const periodMs = (plan as any).interval === 'yearly' ? 365 * 24 * 60 * 60 * 1000 : 30 * 24 * 60 * 60 * 1000;
 
     const [subscription] = await Subscription.upsert({
       user_id: user.id,
@@ -37,7 +37,7 @@ router.post('/subscribe', authenticateToken, async (req: Request, res: Response)
       used_requests: 0,
       current_period_start: now,
       current_period_end: new Date(now.getTime() + periodMs),
-    }, { returning: true });
+    } as any, { returning: true });
 
     res.json({ success: true, message: 'Subscribed successfully', data: { subscription } });
   } catch (error) {

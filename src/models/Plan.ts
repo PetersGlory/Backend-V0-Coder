@@ -17,18 +17,8 @@ export interface PlanAttributes {
 
 export interface PlanCreationAttributes extends Optional<PlanAttributes, 'id' | 'description' | 'created_at' | 'updated_at'> {}
 
-class Plan extends Model<PlanAttributes, PlanCreationAttributes> implements PlanAttributes {
-  public id!: number;
-  public code!: string;
-  public name!: string;
-  public description?: string;
-  public price_cents!: number;
-  public currency!: string;
-  public interval!: 'monthly' | 'yearly';
-  public request_limit!: number;
-  public priority_support!: boolean;
-  public readonly created_at!: Date;
-  public readonly updated_at!: Date;
+class Plan extends Model<PlanAttributes, PlanCreationAttributes> {
+  // Remove all public field declarations to avoid shadowing Sequelize getters/setters
 }
 
 Plan.init(

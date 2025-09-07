@@ -78,8 +78,21 @@ const syncDatabase = async () => {
         priority_support: true,
       },
     ];
-    for (const plan of defaultPlans) {
-      await Plan.findOrCreate({ where: { code: plan.code }, defaults: plan });
+    
+    // Seed plans with better error handling
+    for (const planData of defaultPlans) {
+      try {
+        const existingPlan = await Plan.findOne({ where: { code: planData.code } });
+        if (!existingPlan) {
+          await Plan.create(planData);
+          console.log(`✅ Created plan: ${planData.code}`);
+        } else {
+          console.log(`ℹ️  Plan already exists: ${planData.code}`);
+        }
+      } catch (planError) {
+        console.error(`❌ Failed to seed plan ${planData.code}:`, planError);
+        // Continue with other plans even if one fails
+      }
     }
     console.log('✅ Database synchronized successfully.');
   } catch (error) {

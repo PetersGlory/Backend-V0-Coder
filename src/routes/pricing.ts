@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
-import { authenticateToken } from '../middleware/auth';
-import { Plan, Subscription } from '../models';
+import { authenticateToken } from '../middleware/auth.js';
+import { Plan, Subscription } from '../models/index.js';
 
 const router = Router();
 

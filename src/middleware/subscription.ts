@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { Subscription, Plan } from '../models';
+import { Subscription, Plan } from '../models/index.js';
 
 interface AuthedRequest extends Request {
   user?: any;

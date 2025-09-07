@@ -1,8 +1,8 @@
-import sequelize from '../database/config';
-import User from './User';
-import History from './History';
-import Plan from './Plan';
-import Subscription from './Subscription';
+import sequelize from '../database/config.js';
+import User from './User.js';
+import History from './History.js';
+import Plan from './Plan.js';
+import Subscription from './Subscription.js';
 
 // Define associations
 User.hasMany(History, {

@@ -1,5 +1,5 @@
 import { DataTypes, Model, Optional } from 'sequelize';
-import sequelize from '../database/config';
+import sequelize from '../database/config.js';
 
 export interface SubscriptionAttributes {
   id: number;

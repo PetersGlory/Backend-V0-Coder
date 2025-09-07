@@ -1,8 +1,8 @@
 import { Router, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { Op } from 'sequelize';
-import { User } from '../models';
-import { authenticateToken } from '../middleware/auth';
+import { User } from '../models/index.js';
+import { authenticateToken } from '../middleware/auth.js';
 import { z } from 'zod';
 
 const router = Router();

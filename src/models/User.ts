@@ -17,31 +17,21 @@ interface UserAttributes {
   updated_at: Date;
 }
 
-const salt = await bcrypt.genSalt(10);
-
 interface UserCreationAttributes extends Optional<UserAttributes, 'id' | 'first_name' | 'last_name' | 'avatar_url' | 'is_active' | 'email_verified' | 'last_login' | 'created_at' | 'updated_at'> {}
 
-class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
-  public id!: number;
-  public email!: string;
-  public username!: string;
-  public password!: string;
-  public first_name?: string;
-  public last_name?: string;
-  public avatar_url?: string;
-  public is_active!: boolean;
-  public email_verified!: boolean;
-  public last_login?: Date;
-  public readonly created_at!: Date;
-  public readonly updated_at!: Date;
+class User extends Model<UserAttributes, UserCreationAttributes> {
+  // Remove all public field declarations to avoid shadowing Sequelize getters/setters
 
   // Instance methods
   public async validatePassword(password: string): Promise<boolean> {
-    return bcrypt.compare(password, this.password);
+    return bcrypt.compare(password, (this as any).password);
   }
 
   public async hashPassword(): Promise<void> {
-    this.password = await bcrypt.hash(this.password, salt);
+    if (!(this as any).password) {
+      throw new Error('Password is required for hashing');
+    }
+    (this as any).password = await bcrypt.hash((this as any).password, 12);
   }
 
   public toJSON(): any {
@@ -128,7 +118,7 @@ User.init(
         await user.hashPassword();
       },
       beforeUpdate: async (user: User) => {
-        if (user.changed('password')) {
+        if ((user as any).changed('password')) {
           await user.hashPassword();
         }
       },

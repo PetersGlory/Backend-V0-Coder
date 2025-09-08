@@ -27,7 +27,7 @@ export const authenticateToken = async (req: AuthRequest, res: Response, next: N
     
     // Find user in database
     const user = await User.findByPk(decoded.userId);
-    if (!user || !user.is_active) {
+    if (!user || !(user as any).is_active) {
       return res.status(401).json({ 
         success: false, 
         error: 'Invalid or inactive user' 
@@ -56,7 +56,7 @@ export const optionalAuth = async (req: AuthRequest, res: Response, next: NextFu
         try {
           const decoded = jwt.verify(token, secret) as any;
           const user = await User.findByPk(decoded.userId);
-          if (user && user.is_active) {
+          if (user && (user as any).is_active) {
             req.user = user;
           }
         } catch (error) {

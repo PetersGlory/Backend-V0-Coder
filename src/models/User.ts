@@ -39,7 +39,7 @@ class User extends Model<UserAttributes, UserCreationAttributes> implements User
   }
 
   public async hashPassword(): Promise<void> {
-    this.password = await bcrypt.hash(this.password, 12);
+    this.password = await bcrypt.hash(this.password, 10);
   }
 
   public toJSON(): any {

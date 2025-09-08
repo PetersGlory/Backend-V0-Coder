@@ -17,6 +17,8 @@ interface UserAttributes {
   updated_at: Date;
 }
 
+const salt = await bcrypt.genSalt(10);
+
 interface UserCreationAttributes extends Optional<UserAttributes, 'id' | 'first_name' | 'last_name' | 'avatar_url' | 'is_active' | 'email_verified' | 'last_login' | 'created_at' | 'updated_at'> {}
 
 class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
@@ -39,7 +41,7 @@ class User extends Model<UserAttributes, UserCreationAttributes> implements User
   }
 
   public async hashPassword(): Promise<void> {
-    this.password = await bcrypt.hash(this.password, 10);
+    this.password = await bcrypt.hash(this.password, salt);
   }
 
   public toJSON(): any {

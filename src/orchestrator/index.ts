@@ -11,7 +11,7 @@ import { BackendSpec, GenerationRequest, GenerationResponse, ScaffoldRequest, Sc
 import { z } from 'zod';
 import archiver from 'archiver';
 import session from 'express-session';
-import { syncDatabase } from '../models/index.js';
+import { History, syncDatabase } from '../models/index.js';
 import authRoutes from '../routes/auth.js';
 import historyRoutes from '../routes/history.js';
 import pricingRoutes from '../routes/pricing.js';
@@ -2371,7 +2371,6 @@ app.post('/api/generate-spec', optionalAuth, enforceUsageLimit, async (req: any,
     // Save to history if user is authenticated
     if (req.user) {
       try {
-        const { History } = await import('../models/index.js');
         await History.create({
           user_id: req.user.id,
           prompt,
@@ -2437,12 +2436,38 @@ app.post('/api/scaffold', async (req: Request, res: Response) => {
 });
 
 // Legacy endpoints for backward compatibility
-app.post('/spec', async (req: Request, res: Response) => {
+app.post('/spec', optionalAuth, enforceUsageLimit, async (req: Request, res: Response) => {
   const body = req.body as GenerationRequest;
   if (!body?.prompt) return res.status(400).json({ success: false, error: 'prompt required' } satisfies GenerationResponse);
   try {
     const spec = await promptToSpec(body.prompt);
     const resp: GenerationResponse = { success: true, spec };
+    // Save to history if user is authenticated
+    if (req.user) {
+      try {
+        await History.create({
+          user_id: req.user.id,
+          prompt: body.prompt,
+          spec,
+          project_name: (spec as any).metadata?.name || `backend-${spec.stack.language}-${Date.now()}`,
+          stack_language: spec.stack.language,
+          stack_framework: spec.stack.framework,
+          entities_count: spec.entities?.length || 0,
+        });
+      } catch (historyError) {
+        console.error('Failed to save to history:', historyError);
+        // Don't fail the request if history saving fails
+      }
+    }
+
+    // Increment usage if subscription is present
+    if (req.subscription) {
+      try {
+        await req.subscription.increment('used_requests');
+      } catch (incErr) {
+        console.error('Failed to increment usage:', incErr);
+      }
+    }
     res.json(resp);
   } catch (err: any) {
     res.status(500).json({ success: false, error: err?.message || 'generation failed' } satisfies GenerationResponse);

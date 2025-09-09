@@ -267,69 +267,177 @@ class Scaffolder {
   private addNodeProjectToArchive(archive: archiver.Archiver, spec: any) {
     const projectName = spec.metadata?.name || 'backend-project';
     
-    // Add package.json
+    // Enhanced package.json with better scripts and dependencies
     const pkg = {
       name: projectName,
+      version: "1.0.0",
       type: 'module',
       scripts: {
-        dev: 'tsx src/server.ts',
-        build: 'tsc',
+        dev: 'tsx watch --clear-screen=false src/server.ts',
+        build: 'tsc && tsc-alias',
         start: 'node dist/server.js',
-        prisma: 'prisma'
+        lint: 'eslint src/**/*.ts --fix',
+        format: 'prettier --write src/**/*.ts',
+        test: 'vitest',
+        "test:watch": 'vitest --watch',
+        "prisma:generate": 'prisma generate',
+        "prisma:migrate": 'prisma migrate dev',
+        "prisma:studio": 'prisma studio',
+        "prisma:seed": 'tsx prisma/seed.ts'
       },
       dependencies: {
-        express: '^4',
-        zod: '^3',
-        jsonwebtoken: '^9',
-        bcryptjs: '^2',
-        prisma: '^5',
-        '@prisma/client': '^5'
+        express: '^4.18.2',
+        cors: '^2.8.5',
+        helmet: '^7.1.0',
+        compression: '^1.7.4',
+        'express-rate-limit': '^7.1.5',
+        'express-validator': '^7.0.1',
+        zod: '^3.22.4',
+        jsonwebtoken: '^9.0.2',
+        bcryptjs: '^2.4.3',
+        prisma: '^5.6.0',
+        '@prisma/client': '^5.6.0',
+        dotenv: '^16.3.1',
+        winston: '^3.11.0',
+        'express-winston': '^4.2.0'
       },
-      devDependencies: { typescript: '^5', tsx: '^4', '@types/express': '^4' }
-    };
-    
-    archive.append(JSON.stringify(pkg, null, 2), { name: 'package.json' });
-    
-    // Add tsconfig.json
-    const tsconfig = {
-      compilerOptions: {
-        outDir: 'dist',
-        module: 'ESNext',
-        target: 'ES2022',
-        moduleResolution: 'Node'
+      devDependencies: { 
+        typescript: '^5.2.2', 
+        tsx: '^4.1.4', 
+        '@types/express': '^4.17.21',
+        '@types/cors': '^2.8.17',
+        '@types/compression': '^1.7.5',
+        '@types/jsonwebtoken': '^9.0.5',
+        '@types/bcryptjs': '^2.4.6',
+        '@types/node': '^20.9.0',
+        eslint: '^8.54.0',
+        '@typescript-eslint/eslint-plugin': '^6.12.0',
+        '@typescript-eslint/parser': '^6.12.0',
+        prettier: '^3.1.0',
+        vitest: '^0.34.6',
+        'tsc-alias': '^1.8.8'
       }
     };
+
+    archive.append(JSON.stringify(pkg, null, 2), { name: 'package.json' });
+    
+    // Enhanced tsconfig.json with path mapping
+    const tsconfig = {
+      compilerOptions: {
+        target: 'ES2022',
+        module: 'ESNext',
+        moduleResolution: 'Node',
+        allowSyntheticDefaultImports: true,
+        esModuleInterop: true,
+        allowJs: true,
+        outDir: 'dist',
+        rootDir: 'src',
+        strict: true,
+        skipLibCheck: true,
+        forceConsistentCasingInFileNames: true,
+        resolveJsonModule: true,
+        isolatedModules: true,
+        noEmit: false,
+        baseUrl: '.',
+        paths: {
+          '@/*': ['src/*'],
+          '@/config/*': ['src/config/*'],
+          '@/controllers/*': ['src/controllers/*'],
+          '@/middleware/*': ['src/middleware/*'],
+          '@/routes/*': ['src/routes/*'],
+          '@/services/*': ['src/services/*'],
+          '@/utils/*': ['src/utils/*'],
+          '@/types/*': ['src/types/*']
+        }
+      },
+      include: ['src/**/*'],
+      exclude: ['node_modules', 'dist']
+    };
     archive.append(JSON.stringify(tsconfig, null, 2), { name: 'tsconfig.json' });
+
+    // Professional .env.example
+    const envExample = `# Database
+DATABASE_URL=postgresql://username:password@localhost:5432/database_name
+
+# JWT Configuration
+JWT_SECRET=your-super-secret-jwt-key-here
+JWT_EXPIRES_IN=7d
+JWT_REFRESH_EXPIRES_IN=30d
+
+# Server Configuration
+NODE_ENV=development
+PORT=3000
+API_PREFIX=/api/v1
+
+# Rate Limiting
+RATE_LIMIT_WINDOW_MS=900000
+RATE_LIMIT_MAX_REQUESTS=100
+
+# CORS Configuration
+CORS_ORIGIN=http://localhost:3000,http://localhost:8080
+
+# Logging
+LOG_LEVEL=info
+
+# Email Configuration (Optional)
+EMAIL_FROM=noreply@yourapp.com
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password`;
+
+    archive.append(envExample, { name: '.env.example' });
+
+    // Add professional project structure files
+    archive.append(this.generateNodeServerTs(spec), { name: 'src/server.ts' });
+    archive.append(this.generateAppTs(spec), { name: 'src/app.ts' });
+    archive.append(this.generateConfigIndex(spec), { name: 'src/config/index.ts' });
+    archive.append(this.generateDatabaseConfig(), { name: 'src/config/database.ts' });
+    archive.append(this.generateLoggerConfig(), { name: 'src/config/logger.ts' });
     
-    // Add .env.example
-    archive.append('DATABASE_URL=postgresql://user:pass@localhost:5432/app\nJWT_SECRET=change-me', { name: '.env.example' });
+    // Middleware
+    archive.append(this.generateAuthMiddleware(spec), { name: 'src/middleware/auth.ts' });
+    archive.append(this.generateErrorMiddleware(), { name: 'src/middleware/error.ts' });
+    archive.append(this.generateValidationMiddleware(), { name: 'src/middleware/validation.ts' });
     
-    // Add Prisma schema
-    const prismaModels = spec.entities
-      .map((e: any) => `model ${e.name} {\n${e.fields.map((f: any) => this.prismaField(e.name, f)).join('\n')}\n}`)
-      .join('\n\n');
-    const prismaSchema = `datasource db { provider = "postgresql" url = env("DATABASE_URL") }\n\ngenerator client { provider = "prisma-client-js" }\n\n${prismaModels}\n`;
-    archive.append(prismaSchema, { name: 'prisma/schema.prisma' });
-    
-    // Add server.ts
-    archive.append(this.serverTs(spec), { name: 'src/server.ts' });
-    
-    // Add routes
-    for (const r of spec.api) {
-      archive.append(this.routerTs(r.resource, r.operations), { name: `src/routes/${r.resource}.ts` });
+    // Controllers
+    for (const resource of spec.api) {
+      archive.append(this.generateController(resource, spec), { name: `src/controllers/${resource.resource}.controller.ts` });
     }
     
-    // Add auth.ts
-    archive.append(this.authTs(), { name: 'src/auth.ts' });
+    // Services
+    for (const resource of spec.api) {
+      archive.append(this.generateService(resource, spec), { name: `src/services/${resource.resource}.service.ts` });
+    }
     
-    // Add Dockerfile
-    archive.append(this.dockerNode(), { name: 'Dockerfile' });
+    // Routes with versioning
+    archive.append(this.generateRouteIndex(spec), { name: 'src/routes/index.ts' });
+    for (const resource of spec.api) {
+      archive.append(this.generateProfessionalRoute(resource, spec), { name: `src/routes/${resource.resource}.routes.ts` });
+    }
     
-    // Add GitHub Actions
-    archive.append(this.ghActions(), { name: '.github/workflows/deploy.yml' });
+    // Utils
+    archive.append(this.generateResponseUtil(), { name: 'src/utils/response.ts' });
+    archive.append(this.generateValidationUtil(), { name: 'src/utils/validation.ts' });
     
-    // Add README
-    archive.append(this.generateNodeReadme(spec), { name: 'README.md' });
+    // Types
+    archive.append(this.generateTypesIndex(spec), { name: 'src/types/index.ts' });
+    
+    // Enhanced Prisma schema
+    archive.append(this.generateEnhancedPrismaSchema(spec), { name: 'prisma/schema.prisma' });
+    archive.append(this.generatePrismaSeed(spec), { name: 'prisma/seed.ts' });
+    
+    // Configuration files
+    archive.append(this.generateEslintConfig(), { name: '.eslintrc.json' });
+    archive.append(this.generatePrettierConfig(), { name: '.prettierrc' });
+    archive.append(this.generateGitignore(), { name: '.gitignore' });
+    
+    // Docker
+    archive.append(this.generateProfessionalDockerfile(), { name: 'Dockerfile' });
+    archive.append(this.generateDockerCompose(spec), { name: 'docker-compose.yml' });
+    
+    // Enhanced README
+    archive.append(this.generateProfessionalNodeReadme(spec), { name: 'README.md' });
   }
   
   private addPythonProjectToArchive(archive: archiver.Archiver, spec: any) {
@@ -415,6 +523,795 @@ CORS_ORIGINS=http://localhost:3000,http://localhost:8080`;
     const req = f.required ? '' : '?';
     const uniq = f.unique ? ' @unique' : '';
     return `  ${f.name} ${t}${req}${uniq}`;
+  }
+
+  private generateNodeServerTs(spec: any): string {
+    return `import app from './app.js';
+import config from './config/index.js';
+import logger from './config/logger.js';
+
+const { port } = config;
+
+const server = app.listen(port, () => {
+  logger.info(\`🚀 Server running on port \${port}\`);
+  logger.info(\`📚 API Documentation: http://localhost:\${port}/api/v1/docs\`);
+  logger.info(\`🏥 Health Check: http://localhost:\${port}/api/v1/health\`);
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  logger.info('SIGTERM received. Shutting down gracefully...');
+  server.close(() => {
+    logger.info('Process terminated');
+  });
+});
+
+process.on('SIGINT', () => {
+  logger.info('SIGINT received. Shutting down gracefully...');
+  server.close(() => {
+    logger.info('Process terminated');
+  });
+});
+
+export default server;`;
+  }
+
+  private generateAppTs(spec: any): string {
+    return `import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import compression from 'compression';
+import rateLimit from 'express-rate-limit';
+import expressWinston from 'express-winston';
+
+import config from './config/index.js';
+import logger from './config/logger.js';
+import routes from './routes/index.js';
+import { errorHandler } from './middleware/error.js';
+import { ApiResponse } from './utils/response.js';
+
+const app = express();
+
+// Security middleware
+app.use(helmet());
+app.use(cors({
+  origin: config.corsOrigin,
+  credentials: true
+}));
+
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: config.rateLimitWindowMs,
+  max: config.rateLimitMaxRequests,
+  message: 'Too many requests from this IP, please try again later.'
+});
+app.use(limiter);
+
+// Body parsing middleware
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true }));
+app.use(compression());
+
+// Request logging
+app.use(expressWinston.logger({
+  winstonInstance: logger,
+  meta: false,
+  msg: 'HTTP {{req.method}} {{req.url}}',
+  expressFormat: true,
+  colorize: false
+}));
+
+// Health check endpoint
+app.get('/api/v1/health', (req, res) => {
+  ApiResponse.success(res, { status: 'OK', timestamp: new Date().toISOString() }, 'Service is healthy');
+});
+
+// API routes
+app.use('/api/v1', routes);
+
+// Handle 404
+app.use('*', (req, res) => {
+  ApiResponse.notFound(res, 'Route not found');
+});
+
+// Error handling middleware
+app.use(errorHandler);
+
+export default app;`;
+  }
+
+  private generateConfigIndex(spec: any): string {
+    return `import dotenv from 'dotenv';
+
+dotenv.config();
+
+const config = {
+  // Server
+  port: parseInt(process.env.PORT || '3000', 10),
+  nodeEnv: process.env.NODE_ENV || 'development',
+  apiPrefix: process.env.API_PREFIX || '/api/v1',
+
+  // Database
+  databaseUrl: process.env.DATABASE_URL || '',
+
+  // JWT
+  jwtSecret: process.env.JWT_SECRET || 'fallback-secret-key',
+  jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
+  jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '30d',
+
+  // Rate limiting
+  rateLimitWindowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10), // 15 minutes
+  rateLimitMaxRequests: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100', 10),
+
+  // CORS
+  corsOrigin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:3000'],
+
+  // Logging
+  logLevel: process.env.LOG_LEVEL || 'info',
+
+  // Email
+  email: {
+    from: process.env.EMAIL_FROM || 'noreply@example.com',
+    smtp: {
+      host: process.env.SMTP_HOST || '',
+      port: parseInt(process.env.SMTP_PORT || '587', 10),
+      user: process.env.SMTP_USER || '',
+      pass: process.env.SMTP_PASS || ''
+    }
+  }
+};
+
+export default config;`;
+  }
+
+  private generateErrorMiddleware(): string {
+    return `import { Request, Response, NextFunction } from 'express';
+import { Prisma } from '@prisma/client';
+import logger from '../config/logger.js';
+import { ApiResponse } from '../utils/response.js';
+
+export class AppError extends Error {
+  statusCode: number;
+  isOperational: boolean;
+
+  constructor(message: string, statusCode: number = 500, isOperational: boolean = true) {
+    super(message);
+    this.statusCode = statusCode;
+    this.isOperational = isOperational;
+
+    Error.captureStackTrace(this, this.constructor);
+  }
+}
+
+export const errorHandler = (
+  error: Error,
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  let statusCode = 500;
+  let message = 'Internal server error';
+
+  // Log error
+  logger.error(\`Error: \${error.message}\`, { stack: error.stack });
+
+  // Handle different error types
+  if (error instanceof AppError) {
+    statusCode = error.statusCode;
+    message = error.message;
+  } else if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    if (error.code === 'P2002') {
+      statusCode = 409;
+      message = 'Resource already exists';
+    } else if (error.code === 'P2025') {
+      statusCode = 404;
+      message = 'Resource not found';
+    }
+  } else if (error instanceof Prisma.PrismaClientValidationError) {
+    statusCode = 400;
+    message = 'Invalid data provided';
+  }
+
+  ApiResponse.error(res, message, statusCode);
+};
+
+export const asyncHandler = (fn: Function) => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    Promise.resolve(fn(req, res, next)).catch(next);
+  };
+};`;
+  }
+
+  private generateResponseUtil(): string {
+    return `import { Response } from 'express';
+
+export interface ApiResponseData<T = any> {
+  success: boolean;
+  message: string;
+  data?: T;
+  error?: string;
+  timestamp: string;
+}
+
+export class ApiResponse {
+  static success<T>(res: Response, data?: T, message: string = 'Success', statusCode: number = 200) {
+    return res.status(statusCode).json({
+      success: true,
+      message,
+      data,
+      timestamp: new Date().toISOString()
+    } as ApiResponseData<T>);
+  }
+
+  static error(res: Response, message: string = 'Error', statusCode: number = 500, error?: string) {
+    return res.status(statusCode).json({
+      success: false,
+      message,
+      error,
+      timestamp: new Date().toISOString()
+    } as ApiResponseData);
+  }
+
+  static notFound(res: Response, message: string = 'Resource not found') {
+    return this.error(res, message, 404);
+  }
+
+  static badRequest(res: Response, message: string = 'Bad request') {
+    return this.error(res, message, 400);
+  }
+
+  static unauthorized(res: Response, message: string = 'Unauthorized') {
+    return this.error(res, message, 401);
+  }
+
+  static forbidden(res: Response, message: string = 'Forbidden') {
+    return this.error(res, message, 403);
+  }
+}`;
+  }
+
+  private generateController(resource: any, spec: any): string {
+    const resourceName = resource.resource;
+    const modelName = resourceName.charAt(0).toUpperCase() + resourceName.slice(1);
+    
+    return `import { Request, Response } from 'express';
+import { ${modelName}Service } from '../services/${resourceName}.service.js';
+import { ApiResponse } from '../utils/response.js';
+import { asyncHandler } from '../middleware/error.js';
+
+export class ${modelName}Controller {
+  private ${resourceName}Service: ${modelName}Service;
+
+  constructor() {
+    this.${resourceName}Service = new ${modelName}Service();
+  }
+
+  ${resource.operations.includes('list') ? `
+  getAll = asyncHandler(async (req: Request, res: Response) => {
+    const { page = 1, limit = 10, ...filters } = req.query;
+    const result = await this.${resourceName}Service.findMany({
+      page: Number(page),
+      limit: Number(limit),
+      filters
+    });
+    
+    ApiResponse.success(res, result, '${modelName}s retrieved successfully');
+  });` : ''}
+
+  ${resource.operations.includes('get') ? `
+  getById = asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const ${resourceName} = await this.${resourceName}Service.findById(id);
+    
+    ApiResponse.success(res, ${resourceName}, '${modelName} retrieved successfully');
+  });` : ''}
+
+  ${resource.operations.includes('create') ? `
+  create = asyncHandler(async (req: Request, res: Response) => {
+    const ${resourceName} = await this.${resourceName}Service.create(req.body);
+    
+    ApiResponse.success(res, ${resourceName}, '${modelName} created successfully', 201);
+  });` : ''}
+
+  ${resource.operations.includes('update') ? `
+  update = asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const ${resourceName} = await this.${resourceName}Service.update(id, req.body);
+    
+    ApiResponse.success(res, ${resourceName}, '${modelName} updated successfully');
+  });` : ''}
+
+  ${resource.operations.includes('delete') ? `
+  delete = asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    await this.${resourceName}Service.delete(id);
+    
+    ApiResponse.success(res, null, '${modelName} deleted successfully', 204);
+  });` : ''}
+}`;
+  }
+
+  private generateService(resource: any, spec: any): string {
+    const resourceName = resource.resource;
+    const modelName = resourceName.charAt(0).toUpperCase() + resourceName.slice(1);
+    
+    return `import { PrismaClient } from '@prisma/client';
+import { AppError } from '../middleware/error.js';
+
+const prisma = new PrismaClient();
+
+export class ${modelName}Service {
+  async findMany(options: { page: number; limit: number; filters: any }) {
+    const { page, limit, filters } = options;
+    const skip = (page - 1) * limit;
+    
+    const [items, total] = await Promise.all([
+      prisma.${resourceName}.findMany({
+        skip,
+        take: limit,
+        where: filters,
+        orderBy: { createdAt: 'desc' }
+      }),
+      prisma.${resourceName}.count({ where: filters })
+    ]);
+
+    return {
+      items,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
+    };
+  }
+
+  async findById(id: string) {
+    const ${resourceName} = await prisma.${resourceName}.findUnique({
+      where: { id }
+    });
+
+    if (!${resourceName}) {
+      throw new AppError('${modelName} not found', 404);
+    }
+
+    return ${resourceName};
+  }
+
+  async create(data: any) {
+    return prisma.${resourceName}.create({ data });
+  }
+
+  async update(id: string, data: any) {
+    const existing = await this.findById(id);
+    
+    return prisma.${resourceName}.update({
+      where: { id },
+      data
+    });
+  }
+
+  async delete(id: string) {
+    const existing = await this.findById(id);
+    
+    return prisma.${resourceName}.delete({
+      where: { id }
+    });
+  }
+}`;
+  }
+
+  // Placeholder methods for enhanced Node.js project generation
+  private generateDatabaseConfig(): string {
+    return `import { PrismaClient } from '@prisma/client';
+import config from './index.js';
+
+const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: config.databaseUrl
+    }
+  }
+});
+
+export default prisma;`;
+  }
+
+  private generateLoggerConfig(): string {
+    return `import winston from 'winston';
+import config from './index.js';
+
+const logger = winston.createLogger({
+  level: config.logLevel,
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.errors({ stack: true }),
+    winston.format.json()
+  ),
+  defaultMeta: { service: 'backend-api' },
+  transports: [
+    new winston.transports.File({ filename: 'logs/error.log', level: 'error' }),
+    new winston.transports.File({ filename: 'logs/combined.log' })
+  ]
+});
+
+if (config.nodeEnv !== 'production') {
+  logger.add(new winston.transports.Console({
+    format: winston.format.simple()
+  }));
+}
+
+export default logger;`;
+  }
+
+  private generateAuthMiddleware(spec: any): string {
+    return `import { Request, Response, NextFunction } from 'express';
+import jwt from 'jsonwebtoken';
+import config from '../config/index.js';
+
+interface AuthRequest extends Request {
+  user?: any;
+}
+
+export const authenticateToken = (req: AuthRequest, res: Response, next: NextFunction) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ success: false, message: 'Access token required' });
+  }
+
+  jwt.verify(token, config.jwtSecret, (err: any, user: any) => {
+    if (err) return res.status(403).json({ success: false, message: 'Invalid token' });
+    req.user = user;
+    next();
+  });
+};`;
+  }
+
+  private generateValidationMiddleware(): string {
+    return `import { Request, Response, NextFunction } from 'express';
+import { validationResult } from 'express-validator';
+
+export const handleValidationErrors = (req: Request, res: Response, next: NextFunction) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({
+      success: false,
+      message: 'Validation failed',
+      errors: errors.array()
+    });
+  }
+  next();
+};`;
+  }
+
+  private generateRouteIndex(spec: any): string {
+    const routeImports = spec.api.map((r: any) => 
+      `import ${r.resource}Routes from './${r.resource}.routes.js';`
+    ).join('\n');
+    
+    const routeRegistrations = spec.api.map((r: any) => 
+      `router.use('/${r.resource}', ${r.resource}Routes);`
+    ).join('\n');
+
+    return `import { Router } from 'express';
+${routeImports}
+
+const router = Router();
+
+${routeRegistrations}
+
+export default router;`;
+  }
+
+  private generateProfessionalRoute(resource: any, spec: any): string {
+    const resourceName = resource.resource;
+    const modelName = resourceName.charAt(0).toUpperCase() + resourceName.slice(1);
+    
+    return `import { Router } from 'express';
+import { ${modelName}Controller } from '../controllers/${resourceName}.controller.js';
+import { authenticateToken } from '../middleware/auth.js';
+
+const router = Router();
+const ${resourceName}Controller = new ${modelName}Controller();
+
+// Apply authentication to all routes
+router.use(authenticateToken);
+
+${resource.operations.includes('list') ? `router.get('/', ${resourceName}Controller.getAll);` : ''}
+${resource.operations.includes('get') ? `router.get('/:id', ${resourceName}Controller.getById);` : ''}
+${resource.operations.includes('create') ? `router.post('/', ${resourceName}Controller.create);` : ''}
+${resource.operations.includes('update') ? `router.put('/:id', ${resourceName}Controller.update);` : ''}
+${resource.operations.includes('delete') ? `router.delete('/:id', ${resourceName}Controller.delete);` : ''}
+
+export default router;`;
+  }
+
+  private generateValidationUtil(): string {
+    return `import { z } from 'zod';
+
+export const validateRequest = (schema: z.ZodSchema) => {
+  return (req: any, res: any, next: any) => {
+    try {
+      schema.parse(req.body);
+      next();
+    } catch (error) {
+      res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: error instanceof z.ZodError ? error.errors : []
+      });
+    }
+  };
+};`;
+  }
+
+  private generateTypesIndex(spec: any): string {
+    return `export interface User {
+  id: string;
+  email: string;
+  username: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ApiResponse<T = any> {
+  success: boolean;
+  message: string;
+  data?: T;
+  error?: string;
+  timestamp: string;
+}`;
+  }
+
+  private generateEnhancedPrismaSchema(spec: any): string {
+    const prismaModels = spec.entities
+      .map((e: any) => `model ${e.name} {\n${e.fields.map((f: any) => this.prismaField(e.name, f)).join('\n')}\n}`)
+      .join('\n\n');
+    
+    return `generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+${prismaModels}`;
+  }
+
+  private generatePrismaSeed(spec: any): string {
+    return `import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+async function main() {
+  // Add seed data here
+  console.log('Seeding database...');
+}
+
+main()
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });`;
+  }
+
+  private generateEslintConfig(): string {
+    return `{
+  "env": {
+    "es2021": true,
+    "node": true
+  },
+  "extends": [
+    "eslint:recommended",
+    "@typescript-eslint/recommended"
+  ],
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "ecmaVersion": "latest",
+    "sourceType": "module"
+  },
+  "plugins": ["@typescript-eslint"],
+  "rules": {
+    "indent": ["error", 2],
+    "linebreak-style": ["error", "unix"],
+    "quotes": ["error", "single"],
+    "semi": ["error", "always"]
+  }
+}`;
+  }
+
+  private generatePrettierConfig(): string {
+    return `{
+  "semi": true,
+  "trailingComma": "es5",
+  "singleQuote": true,
+  "printWidth": 80,
+  "tabWidth": 2
+}`;
+  }
+
+  private generateGitignore(): string {
+    return `node_modules/
+dist/
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+logs/
+*.log
+.DS_Store
+.vscode/
+.idea/`;
+  }
+
+  private generateProfessionalDockerfile(): string {
+    return `FROM node:20-alpine AS builder
+
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production
+
+FROM node:20-alpine AS runner
+WORKDIR /app
+
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nodejs
+
+COPY --from=builder /app/node_modules ./node_modules
+COPY . .
+
+USER nodejs
+
+EXPOSE 3000
+
+CMD ["npm", "start"]`;
+  }
+
+  private generateDockerCompose(spec: any): string {
+    return `version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://postgres:password@db:5432/backend_db
+    depends_on:
+      - db
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=backend_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+volumes:
+  postgres_data:`;
+  }
+
+  private generateProfessionalNodeReadme(spec: any): string {
+    return `# ${spec.metadata?.name || 'Backend V0'} - Professional Node.js API
+
+A production-ready Node.js API built with Express, TypeScript, Prisma, and PostgreSQL.
+
+## 🚀 Features
+
+- **Express.js** - Fast, unopinionated web framework
+- **TypeScript** - Type-safe JavaScript with modern features
+- **Prisma** - Next-generation ORM with type safety
+- **PostgreSQL** - Robust, open-source database
+- **JWT Authentication** - Secure token-based authentication
+- **Winston Logging** - Professional logging with multiple transports
+- **Rate Limiting** - Built-in protection against abuse
+- **CORS** - Cross-origin resource sharing support
+- **Helmet** - Security headers middleware
+- **Compression** - Response compression for better performance
+- **Validation** - Request validation with express-validator
+- **Error Handling** - Comprehensive error handling middleware
+- **Docker** - Containerized deployment ready
+
+## 📁 Project Structure
+
+\`\`\`
+src/
+├── config/           # Configuration files
+├── controllers/      # Route controllers
+├── middleware/       # Custom middleware
+├── routes/          # API routes
+├── services/        # Business logic
+├── utils/           # Utility functions
+├── types/           # TypeScript type definitions
+├── app.ts           # Express app configuration
+└── server.ts        # Server entry point
+\`\`\`
+
+## 🛠️ Development
+
+### Prerequisites
+
+- Node.js 20+
+- PostgreSQL 15+
+- npm or yarn
+
+### Installation
+
+1. Clone the repository
+2. Install dependencies:
+   \`\`\`bash
+   npm install
+   \`\`\`
+
+3. Set up environment variables:
+   \`\`\`bash
+   cp .env.example .env
+   \`\`\`
+
+4. Set up the database:
+   \`\`\`bash
+   npm run prisma:generate
+   npm run prisma:migrate
+   \`\`\`
+
+5. Start the development server:
+   \`\`\`bash
+   npm run dev
+   \`\`\`
+
+## 📚 API Documentation
+
+- **Health Check**: \`GET /api/v1/health\`
+- **API Endpoints**: \`/api/v1/{resource}\`
+
+## 🐳 Docker Deployment
+
+\`\`\`bash
+# Build and run with Docker Compose
+docker-compose up -d
+
+# Or build and run individually
+docker build -t backend-api .
+docker run -p 3000:3000 backend-api
+\`\`\`
+
+## 🔧 Scripts
+
+- \`npm run dev\` - Start development server with hot reload
+- \`npm run build\` - Build for production
+- \`npm run start\` - Start production server
+- \`npm run lint\` - Run ESLint
+- \`npm run format\` - Format code with Prettier
+- \`npm run test\` - Run tests
+- \`npm run prisma:studio\` - Open Prisma Studio
+
+## 🔒 Security
+
+- JWT-based authentication
+- Rate limiting
+- CORS protection
+- Security headers with Helmet
+- Input validation
+- SQL injection protection with Prisma
+
+## 📝 License
+
+MIT License - see LICENSE file for details
+
+Generated by EaseArch Backend Generator.`;
   }
 
   private serverTs(spec: any): string {
@@ -554,6 +1451,92 @@ Generated by Backend V0 Orchestrator.
   }
 
   // Python helper methods
+  private generateProfessionalFastapiMain(spec: any): string {
+    return `from contextlib import asynccontextmanager
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from fastapi.responses import JSONResponse
+import time
+import uvicorn
+
+from app.core.config import settings
+from app.core.database import init_db
+from app.core.exceptions import AppException
+from app.api.v1.router import api_router
+from app.core.logging import logger
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    logger.info("🚀 Starting up...")
+    await init_db()
+    yield
+    # Shutdown
+    logger.info("🛑 Shutting down...")
+
+app = FastAPI(
+    title="${spec.metadata?.name || 'Backend V0 API'}",
+    description="Professional AI-generated backend API",
+    version="1.0.0",
+    docs_url="/api/v1/docs" if settings.ENVIRONMENT != "production" else None,
+    redoc_url="/api/v1/redoc" if settings.ENVIRONMENT != "production" else None,
+    lifespan=lifespan
+)
+
+# Security middleware
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.ALLOWED_HOSTS)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Request timing middleware
+@app.middleware("http")
+async def add_process_time_header(request: Request, call_next):
+    start_time = time.time()
+    response = await call_next(request)
+    process_time = time.time() - start_time
+    response.headers["X-Process-Time"] = str(process_time)
+    return response
+
+# Exception handlers
+@app.exception_handler(AppException)
+async def app_exception_handler(request: Request, exc: AppException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "success": False,
+            "message": exc.message,
+            "error_code": exc.error_code
+        }
+    )
+
+# Health check
+@app.get("/api/v1/health")
+async def health_check():
+    return {
+        "success": True,
+        "message": "Service is healthy",
+        "timestamp": time.time()
+    }
+
+# Include API router
+app.include_router(api_router, prefix="/api/v1")
+
+if __name__ == "__main__":
+    uvicorn.run(
+        "app.main:app",
+        host="0.0.0.0",
+        port=settings.PORT,
+        reload=settings.DEBUG,
+        log_level="info"
+    )`;
+  }
+
   private fastapiMain(spec: any): string {
     const imports = [
       'from fastapi import FastAPI, HTTPException, Depends',

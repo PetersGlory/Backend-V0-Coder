@@ -2436,7 +2436,7 @@ app.post('/api/scaffold', async (req: Request, res: Response) => {
 });
 
 // Legacy endpoints for backward compatibility
-app.post('/spec', optionalAuth, enforceUsageLimit, async (req: Request, res: Response) => {
+app.post('/spec', optionalAuth, enforceUsageLimit, async (req: any, res: Response) => {
   const body = req.body as GenerationRequest;
   if (!body?.prompt) return res.status(400).json({ success: false, error: 'prompt required' } satisfies GenerationResponse);
   try {

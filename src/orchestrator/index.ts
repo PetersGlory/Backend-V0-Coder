@@ -31,7 +31,7 @@ const SpecSchema = z.object({
     fields: z.array(z.object({
       name: z.string(),
       type: z.string(),
-      required: z.boolean(),
+      required: z.boolean().default(true),
       unique: z.boolean().optional(),
       default: z.any().optional(),
       validation: z.object({
@@ -194,8 +194,27 @@ class BackendGenerator {
     // More robust JSON cleaning
     try {
       // First, try to parse as-is to see if it's already valid
-      JSON.parse(cleanedText);
-      return cleanedText;
+      const parsed = JSON.parse(cleanedText);
+      
+      // Post-process to add missing required fields
+      if (parsed.entities && Array.isArray(parsed.entities)) {
+        parsed.entities.forEach((entity: any) => {
+          if (entity.fields && Array.isArray(entity.fields)) {
+            entity.fields.forEach((field: any) => {
+              // Add missing required field with default value
+              if (field.required === undefined) {
+                field.required = true;
+              }
+              // Add missing unique field
+              if (field.unique === undefined) {
+                field.unique = false;
+              }
+            });
+          }
+        });
+      }
+      
+      return JSON.stringify(parsed);
     } catch (error) {
       // If parsing fails, try to fix common issues
       console.log('JSON parsing failed, attempting to clean...');
@@ -219,8 +238,27 @@ class BackendGenerator {
       
       // Try parsing again
       try {
-        JSON.parse(cleanedText);
-        return cleanedText;
+        const parsed = JSON.parse(cleanedText);
+        
+        // Post-process to add missing required fields
+        if (parsed.entities && Array.isArray(parsed.entities)) {
+          parsed.entities.forEach((entity: any) => {
+            if (entity.fields && Array.isArray(entity.fields)) {
+              entity.fields.forEach((field: any) => {
+                // Add missing required field with default value
+                if (field.required === undefined) {
+                  field.required = true;
+                }
+                // Add missing unique field
+                if (field.unique === undefined) {
+                  field.unique = false;
+                }
+              });
+            }
+          });
+        }
+        
+        return JSON.stringify(parsed);
       } catch (secondError) {
         console.error('JSON cleaning failed:', secondError);
         console.error('Cleaned text:', cleanedText);
@@ -2630,6 +2668,10 @@ RULES:
 8. Generate Powerful backend code
 9. Ensure all string values are properly escaped for JSON (use \\" for quotes, \\n for newlines, etc.)
 10. Do not include any text before or after the JSON object
+11. CRITICAL: Every field in entities.fields MUST have a "required" property (boolean) - this is mandatory
+12. CRITICAL: Every field in entities.fields MUST have a "unique" property (boolean) - this is mandatory
+13. If a field is not explicitly marked as unique, set "unique": false
+14. If a field is not explicitly marked as required, set "required": true
 
 EXAMPLES:
 

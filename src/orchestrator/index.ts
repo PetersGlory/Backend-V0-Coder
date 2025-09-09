@@ -2317,9 +2317,18 @@ CMD ["uvicorn","app.main:app","--host","0.0.0.0","--port","8000"]`;
 
 // HTTP server setup
 const app = express();
-app.use(cors({ 
-  origin: process.env.CORS_ORIGIN || true,
-  credentials: true 
+app.use(cors({
+  origin: (origin, callback) => {
+    const allowedOrigins = (process.env.CORS_ORIGIN || '').split(',').map(o => o.trim()).filter(Boolean);
+    if (allowedOrigins.length === 0 || allowedOrigins.includes('*')) {
+      callback(null, true);
+    } else if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
 }));
 app.use(helmet());
 app.use(compression());

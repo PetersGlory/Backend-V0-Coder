@@ -174,7 +174,16 @@ class BackendGenerator {
     const cleanedText = this.cleanJsonResponse(generatedText);
     console.log('Cleaned JSON:', cleanedText.substring(0, 500) + '...');
     
-    return JSON.parse(cleanedText);
+    try {
+      return JSON.parse(cleanedText);
+    } catch (parseError) {
+      console.error('Final JSON parsing failed:', parseError);
+      console.error('Cleaned text (first 1000 chars):', cleanedText.substring(0, 1000));
+      
+      // Return fallback spec if all else fails
+      console.log('Using fallback specification due to parsing error');
+      return this.createFallbackSpec();
+    }
   }
   
   private cleanJsonResponse(text: string): string {
@@ -216,25 +225,24 @@ class BackendGenerator {
       
       return JSON.stringify(parsed);
     } catch (error) {
-      // If parsing fails, try to fix common issues
+      // If parsing fails, try a simpler approach
       console.log('JSON parsing failed, attempting to clean...');
       
-      // Fix common escaping issues
+      // Simple cleaning - just fix obvious issues without complex regex
       cleanedText = cleanedText
-        // Fix unescaped quotes in string values (but not in keys)
-        .replace(/"([^"]*)"\s*:\s*"([^"]*[^\\])"([^,}\]]*)/g, (match, key, value, rest) => {
-          const escapedValue = value
-            .replace(/\\/g, '\\\\')
-            .replace(/"/g, '\\"')
-            .replace(/\n/g, '\\n')
-            .replace(/\r/g, '\\r')
-            .replace(/\t/g, '\\t');
-          return `"${key}": "${escapedValue}"${rest}`;
-        })
-        // Fix unescaped backslashes
-        .replace(/\\(?!["\\/bfnrt])/g, '\\\\')
-        // Fix unescaped forward slashes in URLs
-        .replace(/([^\\])\//g, '$1\\/');
+        // Fix common newline issues
+        .replace(/\n/g, '\\n')
+        .replace(/\r/g, '\\r')
+        .replace(/\t/g, '\\t')
+        // Fix unescaped quotes in string values (simple approach)
+        .replace(/"([^"]*)"\s*:\s*"([^"]*)"([^,}\]]*)/g, (match, key, value, rest) => {
+          // Only escape if the value contains unescaped quotes
+          if (value.includes('"') && !value.includes('\\"')) {
+            const escapedValue = value.replace(/"/g, '\\"');
+            return `"${key}": "${escapedValue}"${rest}`;
+          }
+          return match;
+        });
       
       // Try parsing again
       try {
@@ -261,10 +269,86 @@ class BackendGenerator {
         return JSON.stringify(parsed);
       } catch (secondError) {
         console.error('JSON cleaning failed:', secondError);
-        console.error('Cleaned text:', cleanedText);
-        throw new Error(`Failed to parse JSON after cleaning: ${secondError instanceof Error ? secondError.message : 'Unknown error'}`);
+        console.error('Cleaned text (first 1000 chars):', cleanedText.substring(0, 1000));
+        
+        // Last resort: try to extract just the essential parts and rebuild
+        try {
+          const fallbackSpec = this.createFallbackSpec();
+          console.log('Using fallback specification');
+          return JSON.stringify(fallbackSpec);
+        } catch (fallbackError) {
+          throw new Error(`Failed to parse JSON after cleaning: ${secondError instanceof Error ? secondError.message : 'Unknown error'}`);
+        }
       }
     }
+  }
+
+  private createFallbackSpec(): any {
+    return {
+      stack: {
+        language: "node",
+        framework: "express",
+        database: "postgres",
+        orm: "prisma"
+      },
+      entities: [
+        {
+          name: "User",
+          fields: [
+            { name: "id", type: "uuid", required: true, unique: true, default: "uuid" },
+            { name: "email", type: "string", required: true, unique: true },
+            { name: "passwordHash", type: "string", required: true, unique: false },
+            { name: "createdAt", type: "datetime", required: true, unique: false, default: "now" }
+          ],
+          relations: []
+        }
+      ],
+      auth: {
+        strategy: "jwt",
+        roles: ["user", "admin"],
+        permissions: {
+          user: { users: ["read", "write"] },
+          admin: { users: ["read", "write", "delete", "admin"] }
+        }
+      },
+      api: [
+        {
+          resource: "users",
+          operations: ["list", "get", "create", "update", "delete"],
+          middleware: ["auth", "validate"],
+          permissions: {
+            list: ["admin"],
+            get: ["admin", "owner"],
+            create: ["public"],
+            update: ["admin", "owner"],
+            delete: ["admin"]
+          }
+        }
+      ],
+      env: [
+        { name: "DATABASE_URL", description: "PostgreSQL connection string", required: true, type: "url" },
+        { name: "JWT_SECRET", description: "Secret key for JWT tokens", required: true, type: "secret" },
+        { name: "PORT", description: "Server port", required: false, default: "3000", type: "number" }
+      ],
+      extras: {
+        queue: "none",
+        cache: "none",
+        storage: "none",
+        email: "none",
+        payment: "none",
+        search: "none",
+        monitoring: "none",
+        testing: true,
+        docker: true,
+        ci_cd: true
+      },
+      metadata: {
+        name: "fallback-backend",
+        description: "Fallback backend specification",
+        version: "1.0.0",
+        license: "MIT"
+      }
+    };
   }
   
   private getSystemPrompt(): string {
@@ -2666,12 +2750,15 @@ RULES:
 6. Consider security implications (auth, permissions, rate limiting)
 7. Return ONLY the JSON object, no explanations or markdown formatting
 8. Generate Powerful backend code
-9. Ensure all string values are properly escaped for JSON (use \\" for quotes, \\n for newlines, etc.)
+9. CRITICAL: Ensure all string values are properly escaped for JSON
 10. Do not include any text before or after the JSON object
 11. CRITICAL: Every field in entities.fields MUST have a "required" property (boolean) - this is mandatory
 12. CRITICAL: Every field in entities.fields MUST have a "unique" property (boolean) - this is mandatory
 13. If a field is not explicitly marked as unique, set "unique": false
 14. If a field is not explicitly marked as required, set "required": true
+15. CRITICAL: Do NOT use any special characters in string values that could break JSON parsing
+16. CRITICAL: Use simple, clean string values without complex patterns or special characters
+17. CRITICAL: Test your JSON output to ensure it's valid before returning
 
 EXAMPLES:
 

@@ -99,10 +99,18 @@ class BackendGenerator {
   async generateSpec(prompt: string, retries = 3): Promise<any> {
     for (let attempt = 0; attempt < retries; attempt++) {
       try {
-        const spec = await this.callGemini(prompt);
+        const spec = await this.callGemini(prompt, 8192);
         
         // Validate the generated spec
         const validated = SpecSchema.parse(spec);
+
+        // Ensure comprehensive coverage for complex prompts
+        if (!this.isSpecComprehensive(validated, prompt)) {
+          const expansionPrompt = this.buildExpansionPrompt(prompt, validated);
+          const expanded = await this.callGemini(expansionPrompt, 8192);
+          const expandedValidated = SpecSchema.parse(expanded);
+          return expandedValidated;
+        }
         return validated;
       } catch (error) {
         console.error(`Attempt ${attempt + 1} failed:`, error);
@@ -111,9 +119,15 @@ class BackendGenerator {
         if (error instanceof Error && error.message.includes('JSON')) {
           console.log('JSON parsing error detected, trying with simplified prompt...');
           try {
-            const simplePrompt = `Generate a simple backend specification for: ${prompt}. Return only valid JSON.`;
-            const spec = await this.callGemini(simplePrompt);
+            const simplePrompt = `Generate a simple but COMPLETE backend specification for: ${prompt}. Return only valid JSON. Include ALL entities, routes, and env keys mentioned.`;
+            const spec = await this.callGemini(simplePrompt, 4096);
             const validated = SpecSchema.parse(spec);
+            if (!this.isSpecComprehensive(validated, prompt)) {
+              const expansionPrompt = this.buildExpansionPrompt(prompt, validated);
+              const expanded = await this.callGemini(expansionPrompt, 8192);
+              const expandedValidated = SpecSchema.parse(expanded);
+              return expandedValidated;
+            }
             return validated;
           } catch (simpleError) {
             console.error('Simple prompt also failed:', simpleError);
@@ -129,7 +143,7 @@ class BackendGenerator {
     throw new Error('All attempts failed to generate valid specification');
   }
   
-  private async callGemini(prompt: string): Promise<any> {
+  private async callGemini(prompt: string, maxTokens: number = 4096): Promise<any> {
     const systemPrompt = this.getSystemPrompt();
     const fullPrompt = `${systemPrompt}\n\nUser Request: ${prompt}`;
 
@@ -148,7 +162,7 @@ class BackendGenerator {
           temperature: 0.1,
           topK: 40,
           topP: 0.95,
-          maxOutputTokens: 2048,
+          maxOutputTokens: Math.min(Math.max(1024, maxTokens), 8192),
         }
       })
     });
@@ -184,6 +198,48 @@ class BackendGenerator {
       console.log('Using fallback specification due to parsing error');
       return this.createFallbackSpec();
     }
+  }
+
+  private isSpecComprehensive(spec: any, originalPrompt: string): boolean {
+    // Heuristics: if prompt contains keywords, ensure corresponding entities/resources exist
+    const requiredEntities: string[] = [];
+    const lower = originalPrompt.toLowerCase();
+    if (lower.includes('users')) requiredEntities.push('User');
+    if (lower.includes('merchants')) requiredEntities.push('Merchant');
+    if (lower.includes('kyc')) requiredEntities.push('KycDocument');
+    if (lower.includes('directors')) requiredEntities.push('Director');
+    if (lower.includes('transactions')) requiredEntities.push('Transaction');
+    if (lower.includes('group split') || lower.includes('group_split')) requiredEntities.push('GroupSplitContributor');
+    if (lower.includes('settlement')) { requiredEntities.push('Settlement'); requiredEntities.push('SettlementItem'); }
+    if (lower.includes('qr')) requiredEntities.push('QrCode');
+    if (lower.includes('admin')) requiredEntities.push('AdminLog');
+    if (lower.includes('fraud')) requiredEntities.push('FraudFlag');
+
+    const entityNames = new Set((spec.entities || []).map((e: any) => String(e.name).toLowerCase()));
+    const missingEntities = requiredEntities.filter((e) => !entityNames.has(e.toLowerCase()));
+
+    // Also require multiple API resources if prompt is complex
+    const minEntities = lower.includes('dashboard') ? 8 : 3;
+    const minApis = lower.includes('dashboard') ? 10 : 3;
+    const hasEnoughEntities = (spec.entities || []).length >= minEntities;
+    const hasEnoughApis = (spec.api || []).length >= minApis;
+
+    return missingEntities.length === 0 && hasEnoughEntities && hasEnoughApis;
+  }
+
+  private buildExpansionPrompt(originalPrompt: string, partialSpec: any): string {
+    const missingList = [
+      'User','Merchant','KycDocument','Director','Transaction','GroupSplitContributor','Settlement','SettlementItem','QrCode','AdminLog','FraudFlag'
+    ];
+    const existing = new Set((partialSpec.entities || []).map((e: any) => String(e.name).toLowerCase()));
+    const missing = missingList.filter((n) => !existing.has(n.toLowerCase()));
+
+    return `You previously returned an incomplete JSON spec. Expand it to include ALL modules and tables required by the user's prompt.\n\n` +
+      `STRICT REQUIREMENTS:\n- Include entities for: ${missing.join(', ')} (if applicable).\n` +
+      `- Ensure API resources for auth, merchants, transactions, group-splits, settlements, qr-codes, admin (merchants, transactions, settlements, analytics, config, logs), webhooks, and health.\n` +
+      `- Include Redis, S3, Email, and SMS env variables.\n` +
+      `- Keep output as a SINGLE valid JSON object matching the required schema with required/unique flags on all fields.\n\n` +
+      `Return ONLY JSON with no commentary.\n\nORIGINAL USER REQUEST:\n${originalPrompt}`;
   }
   
   private cleanJsonResponse(text: string): string {
@@ -2759,6 +2815,7 @@ RULES:
 15. CRITICAL: Do NOT use any special characters in string values that could break JSON parsing
 16. CRITICAL: Use simple, clean string values without complex patterns or special characters
 17. CRITICAL: Test your JSON output to ensure it's valid before returning
+18. For complex dashboards or admin/merchant systems, include ALL modules mentioned: users, merchants, kyc_documents, directors, transactions, group_split_contributors, settlements, settlement_items, qr_codes, admin_logs, fraud_flags; and API groups for auth, merchants, transactions, group-splits, settlements, qr-codes, admin (merchants, transactions, settlements, analytics, config, logs), webhooks, health.
 
 EXAMPLES:
 

@@ -2493,6 +2493,690 @@ CMD ["uvicorn","app.main:app","--host","0.0.0.0","--port","8000"]`;
   
 }
 
+// ==========================
+// Enhanced (v2) Node.js generator (Professional)
+// ==========================
+
+// Enhanced validation schemas to match professional generator
+const EnhancedFieldSchema = z.object({
+  name: z.string(),
+  type: z.enum(['string', 'number', 'boolean', 'date', 'uuid', 'array', 'object', 'decimal', 'text', 'json']),
+  required: z.boolean().default(true),
+  unique: z.boolean().default(false),
+  default: z.any().optional(),
+  validation: z.object({
+    min: z.number().optional(),
+    max: z.number().optional(),
+    minLength: z.number().optional(),
+    maxLength: z.number().optional(),
+    pattern: z.string().optional(),
+    enum: z.array(z.string()).optional(),
+    email: z.boolean().optional(),
+    phone: z.boolean().optional()
+  }).optional()
+});
+
+const EnhancedEntitySchema = z.object({
+  name: z.string(),
+  fields: z.array(EnhancedFieldSchema),
+  relations: z.array(z.object({
+    type: z.enum(['oneToMany', 'manyToOne', 'manyToMany', 'oneToOne']),
+    target: z.string(),
+    field: z.string(),
+    onDelete: z.enum(['cascade', 'restrict', 'setNull']).optional()
+  })).optional(),
+  indexes: z.array(z.object({
+    fields: z.array(z.string()),
+    unique: z.boolean().optional()
+  })).optional()
+});
+
+const EnhancedSpecSchema = z.object({
+  stack: z.object({
+    language: z.enum(['node', 'python']),
+    framework: z.string(),
+    database: z.string(),
+    orm: z.string(),
+    typescript: z.boolean().default(true)
+  }),
+  entities: z.array(EnhancedEntitySchema),
+  auth: z.object({
+    strategy: z.enum(['jwt', 'session', 'oauth', 'none']),
+    providers: z.array(z.string()).optional(),
+    roles: z.array(z.string()).optional(),
+    permissions: z.record(z.string(), z.unknown()).optional(),
+    middleware: z.array(z.string()).optional()
+  }).optional(),
+  api: z.array(z.object({
+    resource: z.string(),
+    operations: z.array(z.string()),
+    middleware: z.array(z.string()).optional(),
+    permissions: z.record(z.string(), z.unknown()).optional(),
+    validation: z.record(z.string(), z.unknown()).optional(),
+    customEndpoints: z.array(z.object({
+      method: z.string(),
+      path: z.string(),
+      description: z.string()
+    })).optional()
+  })),
+  features: z.object({
+    wallet: z.boolean().optional(),
+    trading: z.boolean().optional(),
+    notifications: z.boolean().optional(),
+    fileUpload: z.boolean().optional(),
+    email: z.boolean().optional(),
+    sms: z.boolean().optional(),
+    payments: z.boolean().optional(),
+    analytics: z.boolean().optional(),
+    realtime: z.boolean().optional()
+  }).optional(),
+  env: z.array(z.object({
+    name: z.string(),
+    description: z.string(),
+    required: z.boolean(),
+    type: z.enum(['string', 'number', 'boolean', 'url', 'secret']),
+    default: z.any().optional()
+  })),
+  extras: z.object({
+    queue: z.enum(['bull', 'celery', 'none']).optional(),
+    cache: z.enum(['redis', 'memcached', 'none']).optional(),
+    storage: z.enum(['s3', 'local', 'gcs', 'none']).optional(),
+    email: z.enum(['sendgrid', 'ses', 'smtp', 'none']).optional(),
+    payment: z.enum(['stripe', 'paypal', 'none']).optional(),
+    search: z.enum(['elasticsearch', 'algolia', 'none']).optional(),
+    monitoring: z.enum(['sentry', 'datadog', 'none']).optional(),
+    testing: z.boolean().optional(),
+    docker: z.boolean().optional(),
+    ci_cd: z.boolean().optional(),
+    swagger: z.boolean().optional()
+  }).optional(),
+  metadata: z.object({
+    name: z.string(),
+    description: z.string(),
+    version: z.string().default('1.0.0'),
+    license: z.string().default('MIT')
+  })
+});
+
+type EnhancedSpec = z.infer<typeof EnhancedSpecSchema>;
+
+class ProfessionalBackendGenerator {
+  private geminiApiKey = process.env.GEMINI_API_KEY!;
+  private geminiApiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+
+  async generateSpec(prompt: string): Promise<EnhancedSpec> {
+    const systemPrompt = `You are an expert backend architect. Generate a comprehensive, production-ready backend specification.
+
+CRITICAL REQUIREMENTS:
+1. Use modern Node.js/TypeScript stack with Express and Sequelize/Prisma
+2. Include comprehensive authentication with JWT and bcrypt
+3. Add proper error handling, validation, and security middleware
+4. Generate clean, modular architecture (controllers, services, middleware, routes)
+5. Include environment configuration and professional project structure
+6. Add features like rate limiting, CORS, compression, logging
+7. Generate proper TypeScript types and interfaces
+8. Include database migrations and seed files
+9. Add Docker support and deployment configuration
+10. Generate professional README and documentation
+`;
+
+    try {
+      const response = await fetch(`${this.geminiApiUrl}?key=${this.geminiApiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: `${systemPrompt}\n\nUser Request: ${prompt}` }] }],
+          generationConfig: { temperature: 0.1, topK: 40, topP: 0.95, maxOutputTokens: 8192 }
+        })
+      });
+
+      if (!response.ok) throw new Error(`Gemini API Error: ${response.status}`);
+      const data = await response.json();
+      const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!generatedText) throw new Error('No text generated');
+
+      const cleaned = this.cleanJsonResponse(generatedText);
+      const parsed = JSON.parse(cleaned);
+      const validated = EnhancedSpecSchema.parse(parsed);
+      return this.enhance(validated);
+    } catch (err) {
+      console.error('Professional generation failed, using fallback:', err);
+      return this.fallbackSpec();
+    }
+  }
+
+  private enhance(spec: EnhancedSpec): EnhancedSpec {
+    return {
+      ...spec,
+      stack: { ...spec.stack, typescript: true, framework: 'express', database: 'mysql', orm: 'sequelize' },
+      extras: { testing: true, docker: true, swagger: true, monitoring: 'sentry', ...(spec.extras || {}) }
+    } as EnhancedSpec;
+  }
+
+  private fallbackSpec(): EnhancedSpec {
+    return {
+      stack: { language: 'node', framework: 'express', database: 'mysql', orm: 'sequelize', typescript: true },
+      entities: [
+        { name: 'User', fields: [
+          { name: 'id', type: 'uuid', required: true, unique: true },
+          { name: 'email', type: 'string', required: true, unique: true, validation: { email: true } },
+          {
+            name: 'password', type: 'string', required: true,
+            unique: false
+          },
+          {
+            name: 'firstName', type: 'string', required: true,
+            unique: false
+          },
+          {
+            name: 'lastName', type: 'string', required: true,
+            unique: false
+          },
+          {
+            name: 'createdAt', type: 'date', required: true,
+            unique: false
+          },
+          {
+            name: 'updatedAt', type: 'date', required: true,
+            unique: false
+          }
+        ]}
+      ],
+      auth: { strategy: 'jwt', roles: ['user', 'admin'] },
+      api: [ { resource: 'users', operations: ['list','get','create','update','delete'], middleware: ['auth','validate'] } ],
+      env: [
+        { name: 'DATABASE_URL', description: 'Database connection string', required: true, type: 'url' },
+        { name: 'JWT_SECRET', description: 'JWT secret key', required: true, type: 'secret' },
+        { name: 'PORT', description: 'Server port', required: false, type: 'number', default: 3000 }
+      ],
+      metadata: { name: 'professional-backend', description: 'Professional backend API', version: '1.0.0', license: 'MIT' }
+    };
+  }
+
+  private cleanJsonResponse(text: string): string {
+    const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+    const s = cleaned.indexOf('{');
+    const e = cleaned.lastIndexOf('}') + 1;
+    if (s === -1 || e === 0) throw new Error('No JSON object found');
+    return cleaned.slice(s, e).trim();
+  }
+}
+
+class ProfessionalCodeGenerator {
+  async generateProject(spec: EnhancedSpec): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+      const archive = archiver('zip', { zlib: { level: 9 } });
+      const chunks: Buffer[] = [];
+      archive.on('data', (c) => chunks.push(c));
+      archive.on('end', () => resolve(Buffer.concat(chunks)));
+      archive.on('error', reject);
+
+      this.generateProjectFiles(archive, spec);
+      archive.finalize();
+    });
+  }
+
+  private generateProjectFiles(archive: archiver.Archiver, spec: EnhancedSpec) {
+    // package.json
+    const pkg = {
+      name: spec.metadata.name.toLowerCase().replace(/\s+/g, '-'),
+      version: spec.metadata.version,
+      description: spec.metadata.description,
+      main: 'dist/server.js',
+      type: 'module',
+      scripts: {
+        dev: 'nodemon src/server.ts',
+        build: 'tsc',
+        start: 'node dist/server.js',
+        test: 'jest',
+        'test:watch': 'jest --watch',
+        lint: 'eslint src/**/*.ts --fix',
+        format: 'prettier --write src/**/*.ts',
+        'db:migrate': 'sequelize-cli db:migrate',
+        'db:seed': 'sequelize-cli db:seed:all',
+        'db:reset': 'sequelize-cli db:migrate:undo:all && npm run db:migrate && npm run db:seed'
+      },
+      dependencies: {
+        express: '^4.18.2', cors: '^2.8.5', helmet: '^7.1.0', compression: '^1.7.4', morgan: '^1.10.0',
+        bcryptjs: '^2.4.3', jsonwebtoken: '^9.0.2', joi: '^17.11.0', sequelize: '^6.35.0', mysql2: '^3.6.5',
+        dotenv: '^16.3.1', winston: '^3.11.0', 'express-rate-limit': '^7.1.5', 'express-validator': '^7.0.1',
+        multer: '^1.4.5-lts.1', nodemailer: '^6.9.7', uuid: '^9.0.1'
+      },
+      devDependencies: {
+        '@types/express': '^4.17.21', '@types/cors': '^2.8.17', '@types/bcryptjs': '^2.4.6', '@types/jsonwebtoken': '^9.0.5',
+        '@types/morgan': '^1.9.9', '@types/compression': '^1.7.5', '@types/multer': '^1.4.11', '@types/nodemailer': '^6.4.14',
+        '@types/uuid': '^9.0.7', '@types/node': '^20.9.0', '@types/jest': '^29.5.8', typescript: '^5.2.2', nodemon: '^3.0.1',
+        'ts-node': '^10.9.1', jest: '^29.7.0', 'ts-jest': '^29.1.1', eslint: '^8.54.0', '@typescript-eslint/parser': '^6.12.0',
+        '@typescript-eslint/eslint-plugin': '^6.12.0', prettier: '^3.1.0', 'sequelize-cli': '^6.6.2'
+      }
+    };
+    archive.append(JSON.stringify(pkg, null, 2), { name: 'package.json' });
+
+    // tsconfig.json
+    const tsconfig = {
+      compilerOptions: {
+        target: 'ES2022', module: 'ESNext', moduleResolution: 'Node', allowSyntheticDefaultImports: true,
+        esModuleInterop: true, allowJs: true, outDir: 'dist', rootDir: 'src', strict: true, skipLibCheck: true,
+        forceConsistentCasingInFileNames: true, resolveJsonModule: true, declaration: true, sourceMap: true,
+        baseUrl: './src', paths: { '@/*': ['./*'], '@/config/*': ['./config/*'], '@/controllers/*': ['./controllers/*'], '@/models/*': ['./models/*'], '@/middleware/*': ['./middleware/*'], '@/routes/*': ['./routes/*'], '@/services/*': ['./services/*'], '@/utils/*': ['./utils/*'], '@/types/*': ['./types/*'] }
+      },
+      include: ['src/**/*'], exclude: ['node_modules', 'dist', '**/*.test.ts']
+    };
+    archive.append(JSON.stringify(tsconfig, null, 2), { name: 'tsconfig.json' });
+
+    // env example
+    archive.append(this.generateEnvFile(spec), { name: '.env.example' });
+
+    // Configs
+    archive.append(this.generateDatabaseConfig(), { name: 'src/config/database.ts' });
+
+    // App/server
+    archive.append(this.generateServerFile(spec), { name: 'src/server.ts' });
+    archive.append(this.generateAppFile(), { name: 'src/app.ts' });
+
+    // Models
+    archive.append(this.generateModelsIndex(spec), { name: 'src/models/index.ts' });
+    for (const entity of spec.entities) {
+      archive.append(this.generateSequelizeModel(entity, spec), { name: `src/models/${entity.name}.ts` });
+    }
+
+    // Controllers & Services
+    for (const resource of spec.api) {
+      archive.append(this.generateProfessionalController(resource, spec), { name: `src/controllers/${resource.resource}Controller.ts` });
+      archive.append(this.generateService(resource, spec), { name: `src/services/${resource.resource}Service.ts` });
+    }
+
+    // Middleware
+    archive.append(this.generateAuthMiddleware(spec), { name: 'src/middleware/auth.ts' });
+    archive.append(this.generateValidationMiddleware(), { name: 'src/middleware/validation.ts' });
+    archive.append(this.generateErrorMiddleware(), { name: 'src/middleware/errorHandler.ts' });
+
+    // Routes
+    archive.append(this.generateRoutesIndex(spec), { name: 'src/routes/index.ts' });
+    for (const resource of spec.api) {
+      archive.append(this.generateProfessionalRoute(resource, spec), { name: `src/routes/${resource.resource}Routes.ts` });
+    }
+
+    // Utils & Types
+    archive.append(this.generateAppError(), { name: 'src/utils/AppError.ts' });
+    archive.append(this.generateCatchAsync(), { name: 'src/utils/catchAsync.ts' });
+    archive.append(this.generateResponseUtils(), { name: 'src/utils/response.ts' });
+    archive.append(this.generateValidationRules(spec), { name: 'src/utils/validationRules.ts' });
+    archive.append(this.generateTypes(spec), { name: 'src/types/index.ts' });
+
+    // Lint/format/git
+    archive.append(this.generateEslintConfig(), { name: '.eslintrc.json' });
+    archive.append(this.generatePrettierConfig(), { name: '.prettierrc' });
+    archive.append(this.generateGitignore(), { name: '.gitignore' });
+
+    // Docker
+    archive.append(this.generateDockerfile(), { name: 'Dockerfile' });
+    archive.append(this.generateDockerCompose(spec), { name: 'docker-compose.yml' });
+
+    // Docs
+    archive.append(this.generateProfessionalReadme(spec), { name: 'README.md' });
+    archive.append(this.generateAPIDocumentation(spec), { name: 'docs/API.md' });
+
+    // Sequelize migrations & seeds
+    const now = new Date();
+    const ts = `${now.getFullYear()}${(now.getMonth()+1).toString().padStart(2,'0')}${now.getDate().toString().padStart(2,'0')}${now.getHours().toString().padStart(2,'0')}${now.getMinutes().toString().padStart(2,'0')}${now.getSeconds().toString().padStart(2,'0')}`;
+    archive.append(this.generateMigration(spec), { name: `src/database/migrations/${ts}-create-tables.js` });
+    archive.append(this.generateSeeder(spec), { name: `src/database/seeders/${ts}-demo-data.js` });
+
+    // Sequelize CLI config
+    archive.append(this.generateSequelizeConfig(), { name: '.sequelizerc' });
+  }
+
+  // ========== Utility generators (strings) ==========
+ 
+  private generateAppError(): string {
+    return `export class AppError extends Error {
+  public readonly statusCode: number;
+  public readonly status: string;
+  public readonly isOperational: boolean;
+  public readonly errors?: any[];
+
+  constructor(message: string, statusCode: number = 500, errors?: any[]) {
+    super(message);
+    this.statusCode = statusCode;
+    this.status = \`\${statusCode}\`.startsWith('4') ? 'fail' : 'error';
+    this.isOperational = true;
+    this.errors = errors;
+    Error.captureStackTrace(this, this.constructor);
+  }
+}
+`;
+  }
+
+  private generateCatchAsync(): string { return `import { Request, Response, NextFunction } from 'express';
+
+type AsyncFunction = (req: Request, res: Response, next: NextFunction) => Promise<any>;
+
+export const catchAsync = (fn: AsyncFunction) => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    fn(req, res, next).catch(next);
+  };
+};
+`; }
+
+  private generateResponseUtils(): string { return `import { Response } from 'express';
+
+interface ApiResponse<T = any> { success: boolean; message: string; data?: T; error?: string; errors?: any[]; timestamp: string; }
+interface PaginationInfo { page: number; limit: number; total: number; totalPages: number; hasNextPage: boolean; hasPreviousPage: boolean; }
+interface PaginatedResponse<T = any> extends ApiResponse<T[]> { pagination: PaginationInfo; }
+
+export const successResponse = <T>(res: Response, data?: T, message: string = 'Success', statusCode: number = 200): Response => {
+  return res.status(statusCode).json({ success: true, message, data, timestamp: new Date().toISOString() } as ApiResponse<T>);
+};
+
+export const errorResponse = (res: Response, message: string = 'Error', statusCode: number = 500, errors?: any[]): Response => {
+  return res.status(statusCode).json({ success: false, message, errors, timestamp: new Date().toISOString() } as ApiResponse);
+};
+
+export const paginatedResponse = <T>(res: Response, result: { items: T[]; pagination: PaginationInfo }, message: string = 'Success', statusCode: number = 200): Response => {
+  return res.status(statusCode).json({ success: true, message, data: result.items, pagination: result.pagination, timestamp: new Date().toISOString() } as PaginatedResponse<T>);
+};
+
+export const createdResponse = <T>(res: Response, data: T, message: string = 'Created successfully'): Response => successResponse(res, data, message, 201);
+export const noContentResponse = (res: Response): Response => res.status(204).send();
+export const notFoundResponse = (res: Response, message: string = 'Resource not found'): Response => errorResponse(res, message, 404);
+export const validationErrorResponse = (res: Response, errors: any[], message: string = 'Validation failed'): Response => errorResponse(res, message, 400, errors);
+export const unauthorizedResponse = (res: Response, message: string = 'Unauthorized'): Response => errorResponse(res, message, 401);
+export const forbiddenResponse = (res: Response, message: string = 'Forbidden'): Response => errorResponse(res, message, 403);
+`; }
+
+  private generateValidationRules(spec: EnhancedSpec): string {
+    let out = 'import { body, param, query } from \'express-validator\';\n\n';
+    for (const entity of spec.entities) {
+      const createVal = entity.fields.filter(f => f.name !== 'id').map(f => {
+        let v = `body('${f.name}')`;
+        switch (f.type) {
+          case 'string': case 'text': v += '.isString()'; if ((f as any).validation?.minLength) v += `.isLength({ min: ${(f as any).validation.minLength} })`; if ((f as any).validation?.maxLength) v += `.isLength({ max: ${(f as any).validation.maxLength} })`; if ((f as any).validation?.email) v += '.isEmail()'; break;
+          case 'number': case 'decimal': v += '.isNumeric()'; if ((f as any).validation?.min) v += `.isFloat({ min: ${(f as any).validation.min} })`; if ((f as any).validation?.max) v += `.isFloat({ max: ${(f as any).validation.max} })`; break;
+          case 'boolean': v += '.isBoolean()'; break;
+          case 'date': v += '.isISO8601()'; break;
+          case 'uuid': v += '.isUUID()'; break;
+        }
+        v += f.required ? '.notEmpty()' : '.optional()';
+        v += `.withMessage('${f.name} validation failed')`;
+        return `  ${v}`;
+      }).join(',\n');
+
+      const updateVal = entity.fields.filter(f => f.name !== 'id').map(f => {
+        let v = `body('${f.name}').optional()`;
+        switch (f.type) {
+          case 'string': case 'text': v += '.isString()'; if ((f as any).validation?.minLength) v += `.isLength({ min: ${(f as any).validation.minLength} })`; if ((f as any).validation?.maxLength) v += `.isLength({ max: ${(f as any).validation.maxLength} })`; if ((f as any).validation?.email) v += '.isEmail()'; break;
+          case 'number': case 'decimal': v += '.isNumeric()'; break;
+          case 'boolean': v += '.isBoolean()'; break;
+          case 'date': v += '.isISO8601()'; break;
+          case 'uuid': v += '.isUUID()'; break;
+        }
+        v += `.withMessage('${f.name} validation failed')`;
+        return `  ${v}`;
+      }).join(',\n');
+
+      out += `// ${entity.name} validation rules\nexport const ${entity.name.toLowerCase()}ValidationRules = {\n  create: [\n${createVal}\n  ],\n  \n  update: [\n    param('id').isUUID().withMessage('Invalid ID format'),\n${updateVal}\n  ],\n\n  get: [\n    param('id').isUUID().withMessage('Invalid ID format')\n  ]\n};\n\n`;
+    }
+    out += `// Common validation rules\nexport const commonValidationRules = {\n  pagination: [\n    query('page').optional().isInt({ min: 1 }).withMessage('Page must be a positive integer'),\n    query('limit').optional().isInt({ min: 1, max: 100 }).withMessage('Limit must be between 1 and 100'),\n    query('sortBy').optional().isString().withMessage('SortBy must be a string'),\n    query('sortOrder').optional().isIn(['ASC', 'DESC']).withMessage('SortOrder must be ASC or DESC')\n  ],\n\n  search: [\n    query('search').optional().isString().isLength({ min: 1, max: 100 }).withMessage('Search query must be 1-100 characters')\n  ],\n\n  bulkOperation: [\n    body('ids').isArray({ min: 1 }).withMessage('IDs array is required'),\n    body('ids.*').isUUID().withMessage('Each ID must be a valid UUID')\n  ]\n};\n`;
+    return out;
+  }
+
+  private generateRoutesIndex(spec: EnhancedSpec): string {
+    const routeImports = spec.api.map(r => `import ${r.resource}Routes from './${r.resource}Routes.js';`).join('\n');
+    const regs = spec.api.map(r => `router.use('/${r.resource}', ${r.resource}Routes);`).join('\n');
+    return `import { Router } from 'express';\n${routeImports}\n\nconst router = Router();\n\n// Health check\nrouter.get('/health', (req, res) => {\n  res.status(200).json({\n    success: true,\n    message: 'API is healthy',\n    timestamp: new Date().toISOString(),\n    environment: process.env.NODE_ENV,\n    version: process.env.npm_package_version || '1.0.0'\n  });\n});\n\n// API routes\n${regs}\n\n// Catch-all route for undefined endpoints\nrouter.use('*', (req, res) => {\n  res.status(404).json({\n    success: false,\n    message: \`Route \${req.originalUrl} not found\`,\n    timestamp: new Date().toISOString()\n  });\n});\n\nexport default router;\n`;
+  }
+
+  private generateProfessionalRoute(resource: any, spec: EnhancedSpec): string {
+    const resourceName = resource.resource;
+    const modelName = resourceName.charAt(0).toUpperCase() + resourceName.slice(1);
+    const controllerName = `${modelName}Controller`;
+    const fields = (spec.entities.find(e => e.name.toLowerCase() === resourceName)?.fields || []).filter(f => f.name !== 'id').map(f => f.name).join("', '");
+    return `import { Router } from 'express';\nimport { ${controllerName} } from '../controllers/${resourceName}Controller.js';\nimport { authenticate, authorize, optionalAuth, requirePermission } from '../middleware/auth.js';\nimport { validate, validatePagination, sanitizeBody } from '../middleware/validation.js';\nimport { ${resource.resource}ValidationRules, commonValidationRules } from '../utils/validationRules.js';\n\nconst router = Router();\nconst ${resource.resource}Controller = new ${controllerName}();\n\n// Public routes (if any)\n${resource.operations.includes('list') && !(resource.middleware||[]).includes('auth') ? `router.get('/',\n  validatePagination,\n  validate(commonValidationRules.pagination),\n  validate(commonValidationRules.search),\n  ${resource.resource}Controller.getAll\n);` : ''}\n\n${resource.operations.includes('get') && !(resource.middleware||[]).includes('auth') ? `router.get('/:id',\n  validate(${resource.resource}ValidationRules.get),\n  ${resource.resource}Controller.getById\n);` : ''}\n\n// Apply authentication to protected routes\nrouter.use(authenticate);\n\n${resource.operations.includes('list') && (resource.middleware||[]).includes('auth') ? `router.get('/',\n  authorize('user','admin'),\n  validatePagination,\n  validate(commonValidationRules.pagination),\n  validate(commonValidationRules.search),\n  ${resource.resource}Controller.getAll\n);` : ''}\n\n${resource.operations.includes('get') && (resource.middleware||[]).includes('auth') ? `router.get('/:id',\n  validate(${resource.resource}ValidationRules.get),\n  requirePermission('${resourceName}', 'read'),\n  ${resource.resource}Controller.getById\n);` : ''}\n\n${resource.operations.includes('create') ? `router.post('/',\n  authorize('user','admin'),\n  sanitizeBody(['${fields}'].filter(Boolean)),\n  validate(${resource.resource}ValidationRules.create),\n  requirePermission('${resourceName}', 'create'),\n  ${resource.resource}Controller.create\n);` : ''}\n\n${resource.operations.includes('update') ? `router.put('/:id',\n  authorize('user','admin'),\n  sanitizeBody(['${fields}'].filter(Boolean)),\n  validate(${resource.resource}ValidationRules.update),\n  requirePermission('${resourceName}', 'update'),\n  ${resource.resource}Controller.update\n);` : ''}\n\n${resource.operations.includes('delete') ? `router.delete('/:id',\n  authorize('admin'),\n  validate(${resource.resource}ValidationRules.get),\n  requirePermission('${resourceName}', 'delete'),\n  ${resource.resource}Controller.delete\n);` : ''}\n\n${resource.operations.includes('search') ? `router.post('/search',\n  authorize('user','admin'),\n  validate(commonValidationRules.search),\n  ${resource.resource}Controller.search\n);` : ''}\n\n// Bulk operations (admin only)\nrouter.post('/bulk/create', authorize('admin'), validate(commonValidationRules.bulkOperation), ${resource.resource}Controller.bulkCreate);\nrouter.patch('/bulk/update', authorize('admin'), validate(commonValidationRules.bulkOperation), ${resource.resource}Controller.bulkUpdate);\nrouter.delete('/bulk/delete', authorize('admin'), validate(commonValidationRules.bulkOperation), ${resource.resource}Controller.bulkDelete);\n\nexport default router;\n`;
+  }
+
+  private getTypeScriptType(fieldType: string): string {
+    switch (fieldType) {
+      case 'uuid': case 'string': case 'text': return 'string';
+      case 'number': case 'decimal': return 'number';
+      case 'boolean': return 'boolean';
+      case 'date': return 'Date';
+      case 'array': return 'any[]';
+      case 'object': case 'json': return 'object';
+      default: return 'string';
+    }
+  }
+
+  private generateTypes(spec: EnhancedSpec): string {
+    let out = '// Global type definitions\n\n';
+    for (const entity of spec.entities) {
+      out += `export interface ${entity.name} {\n${entity.fields.map(f => `  ${f.name}: ${this.getTypeScriptType(f.type)};`).join('\n')}\n  readonly createdAt: Date;\n  readonly updatedAt: Date;\n  readonly deletedAt?: Date;\n}\n\nexport interface ${entity.name}CreateInput {\n${entity.fields.filter(f=>f.name!=='id').map(f => `  ${f.name}${f.required ? '' : '?'}: ${this.getTypeScriptType(f.type)};`).join('\n')}\n}\n\nexport interface ${entity.name}UpdateInput {\n${entity.fields.filter(f=>f.name!=='id').map(f => `  ${f.name}?: ${this.getTypeScriptType(f.type)};`).join('\n')}\n}\n\n`;
+    }
+    out += `export interface ApiResponse<T = any> { success: boolean; message: string; data?: T; error?: string; errors?: ValidationError[]; timestamp: string; }\nexport interface PaginatedResponse<T = any> extends ApiResponse<T[]> { pagination: PaginationInfo; }\nexport interface PaginationInfo { page: number; limit: number; total: number; totalPages: number; hasNextPage: boolean; hasPreviousPage: boolean; }\nexport interface ValidationError { field: string; message: string; value?: any; }\nexport interface SearchOptions { query: string; filters?: Record<string, any>; sortBy?: string; sortOrder?: 'ASC' | 'DESC'; }\nexport interface BulkOperation { ids: string[]; updates?: Record<string, any>; }\nexport interface AuthUser { id: string; email: string; firstName: string; lastName: string; role: string; roles?: string[]; isActive: boolean; }\nexport interface LoginRequest { email: string; password: string; }\nexport interface RegisterRequest extends LoginRequest { firstName: string; lastName: string; phone?: string; }\nexport interface TokenResponse { accessToken: string; refreshToken: string; expiresIn: number; user: AuthUser; }\n\ndeclare global { namespace Express { interface Request { user?: AuthUser; token?: string; } } }\n`;
+    return out;
+  }
+
+  private generateEslintConfig(): string { return `{
+  "env": { "es2022": true, "node": true },
+  "extends": [ "eslint:recommended", "@typescript-eslint/recommended", "@typescript-eslint/recommended-requiring-type-checking" ],
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": { "ecmaVersion": "latest", "sourceType": "module", "project": "./tsconfig.json" },
+  "plugins": ["@typescript-eslint"],
+  "rules": { "indent": ["error", 2], "linebreak-style": ["error", "unix"], "quotes": ["error", "single"], "semi": ["error", "always"], "@typescript-eslint/no-unused-vars": "error", "@typescript-eslint/explicit-function-return-type": "warn", "@typescript-eslint/no-explicit-any": "warn", "@typescript-eslint/no-unsafe-assignment": "off", "@typescript-eslint/no-unsafe-member-access": "off", "@typescript-eslint/no-unsafe-call": "off" },
+  "ignorePatterns": ["dist/", "node_modules/", "*.js"]
+}`; }
+
+  private generatePrettierConfig(): string { return `{
+  "semi": true,
+  "trailingComma": "es5",
+  "singleQuote": true,
+  "printWidth": 100,
+  "tabWidth": 2,
+  "useTabs": false,
+  "bracketSpacing": true,
+  "arrowParens": "avoid"
+}`; }
+
+  private generateGitignore(): string { return `node_modules/\n npm-debug.log*\n yarn-debug.log*\n yarn-error.log*\n pids\n *.pid\n *.seed\n *.pid.lock\n lib-cov\n coverage/\n *.lcov\n .nyc_output\n .grunt\n bower_components\n .lock-wscript\n build/Release\n jspm_packages/\n *.tsbuildinfo\n .npm\n .eslintcache\n *.tgz\n .yarn-integrity\n .env\n .env.test\n .env.production\n .env.local\n .cache\n .parcel-cache\n .next\n .nuxt\n .vuepress/dist\n .serverless/\n .fusebox/\n .dynamodb/\n .tern-port\n dist/\n build/\n logs/\n *.log\n *.sqlite\n *.sqlite3\n .vscode/\n .idea/\n *.swp\n *.swo\n .DS_Store\n Thumbs.db\n uploads/\n temp/\n *.backup\n *.bak\n`; }
+
+  private generateDockerfile(): string { return `FROM node:20-alpine AS builder\nWORKDIR /app\nCOPY package*.json ./\nRUN npm ci --only=production && npm cache clean --force\nCOPY . .\nRUN npm run build\n\nFROM node:20-alpine AS production\nWORKDIR /app\nRUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001\nCOPY --from=builder /app/dist ./dist\nCOPY --from=builder /app/node_modules ./node_modules\nCOPY --from=builder /app/package*.json ./\nRUN chown -R nodejs:nodejs /app\nUSER nodejs\nEXPOSE 3000\nHEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \\ \n  CMD node -e "const http = require('http'); \\n    const req = http.request('http://localhost:3000/api/health', res => { \\\n      process.exit(res.statusCode === 200 ? 0 : 1); \\n    }); \\n    req.on('error', () => process.exit(1)); \\n    req.end();"\nCMD ["node", "dist/server.js"]\n`; }
+
+  private generateDockerCompose(spec: EnhancedSpec): string {
+    const dbName = spec.metadata.name.toLowerCase().replace(/\s+/g, '_');
+    return `version: '3.8'\n\nservices:\n  app:\n    build: .\n    ports:\n      - "3000:3000"\n    environment:\n      - NODE_ENV=production\n      - DB_HOST=db\n      - DB_PORT=3306\n      - DB_NAME=${dbName}_db\n      - DB_USER=root\n      - DB_PASSWORD=rootpassword\n      - JWT_SECRET=your-super-secret-jwt-key\n      - CORS_ORIGIN=http://localhost:3000\n    depends_on:\n      db:\n        condition: service_healthy\n    volumes:\n      - ./uploads:/app/uploads\n    restart: unless-stopped\n    networks:\n      - app-network\n\n  db:\n    image: mysql:8.0\n    environment:\n      - MYSQL_ROOT_PASSWORD=rootpassword\n      - MYSQL_DATABASE=${dbName}_db\n      - MYSQL_USER=appuser\n      - MYSQL_PASSWORD=apppassword\n    volumes:\n      - mysql_data:/var/lib/mysql\n    ports:\n      - "3306:3306"\n    restart: unless-stopped\n    healthcheck:\n      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]\n      timeout: 20s\n      retries: 10\n    networks:\n      - app-network\n\n  redis:\n    image: redis:7-alpine\n    ports:\n      - "6379:6379"\n    volumes:\n      - redis_data:/data\n    restart: unless-stopped\n    networks:\n      - app-network\n\nvolumes:\n  mysql_data:\n  redis_data:\n\nnetworks:\n  app-network:\n    driver: bridge\n`;
+  }
+
+  private generateSequelizeConfig(): string { return `const path = require('path');\n\nmodule.exports = {\n  'config': path.resolve('./src/config/database.js'),\n  'models-path': path.resolve('./src/models'),\n  'seeders-path': path.resolve('./src/database/seeders'),\n  'migrations-path': path.resolve('./src/database/migrations')\n};\n`; }
+
+  private generateMigration(spec: EnhancedSpec): string {
+    const tables = spec.entities.map((entity) => {
+      const fields = entity.fields.map((field) => {
+        let t = 'Sequelize.STRING';
+        const opts: string[] = [];
+        switch (field.type) {
+          case 'uuid': t = 'Sequelize.UUID'; if (field.name === 'id') { opts.push('primaryKey: true'); opts.push('defaultValue: Sequelize.UUIDV4'); } break;
+          case 'string': t = 'Sequelize.STRING'; break;
+          case 'text': t = 'Sequelize.TEXT'; break;
+          case 'number': t = 'Sequelize.INTEGER'; break;
+          case 'decimal': t = 'Sequelize.DECIMAL(10, 2)'; break;
+          case 'boolean': t = 'Sequelize.BOOLEAN'; break;
+          case 'date': t = 'Sequelize.DATE'; break;
+          case 'json': case 'array': case 'object': t = 'Sequelize.JSON'; break;
+        }
+        if (!field.required && field.name !== 'id') opts.push('allowNull: true');
+        else if (field.name !== 'id') opts.push('allowNull: false');
+        if (field.unique && field.name !== 'id') opts.push('unique: true');
+        const optStr = opts.length ? `, { ${opts.join(', ')} }` : '';
+        return `        ${field.name}: {\n          type: ${t}${optStr}\n        }`;
+      }).join(',\n');
+      return `      await queryInterface.createTable('${entity.name.toLowerCase()}s', {\n${fields},\n        created_at: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP') },\n        updated_at: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP') },\n        deleted_at: { type: Sequelize.DATE, allowNull: true }\n      });`;
+    }).join('\n\n');
+
+    return `'use strict';\n\nmodule.exports = {\n  async up(queryInterface, Sequelize) {\n${tables}\n\n    // Add indexes for better performance\n${spec.entities.map((entity) => {
+      // placeholder indexes
+      return `    // Add custom indexes for ${entity.name.toLowerCase()}s if needed`;
+    }).join('\n')}\n  },\n\n  async down(queryInterface, Sequelize) {\n${[...spec.entities].reverse().map((entity) => `    await queryInterface.dropTable('${entity.name.toLowerCase()}s');`).join('\n')}\n  }\n};\n`;
+  }
+
+  private generateSeeder(spec: EnhancedSpec): string {
+    return `'use strict';\n\nmodule.exports = {\n  async up(queryInterface, Sequelize) {\n    // TODO: seed initial data\n  },\n  async down(queryInterface, Sequelize) {\n${spec.entities.map((e) => `    await queryInterface.bulkDelete('${e.name.toLowerCase()}s', null, {});`).join('\n')}\n  }\n};\n`;
+  }
+
+  private generateProfessionalReadme(spec: EnhancedSpec): string { return `# ${spec.metadata.name} - Professional Backend API\n\n${spec.metadata.description}\n\nA production-ready Node.js backend built with Express.js, TypeScript, Sequelize, and MySQL.\n`; }
+
+  private generateAPIDocumentation(spec: EnhancedSpec): string { return `# API Documentation - ${spec.metadata.name}\n`; }
+
+  private generateEnvFile(spec: EnhancedSpec): string {
+    let env = `DB_HOST=localhost\nDB_PORT=3306\nDB_NAME=${spec.metadata.name.toLowerCase().replace(/\s+/g,'_')}_db\nDB_USER=root\nDB_PASSWORD=\nDB_DIALECT=mysql\n\nJWT_SECRET=your-super-secret-jwt-key-change-in-production\nJWT_EXPIRES_IN=7d\nJWT_REFRESH_EXPIRES_IN=30d\n\nNODE_ENV=development\nPORT=3000\n\nCORS_ORIGIN=http://localhost:3000,http://localhost:3001\n\nRATE_LIMIT_WINDOW_MS=900000\nRATE_LIMIT_MAX_REQUESTS=100\n\nSMTP_HOST=smtp.gmail.com\nSMTP_PORT=587\nSMTP_USER=your-email@gmail.com\nSMTP_PASS=your-app-password\nEMAIL_FROM=noreply@${spec.metadata.name.toLowerCase()}.com\n\nUPLOAD_MAX_SIZE=10485760\nUPLOAD_PATH=uploads/\n\nLOG_LEVEL=info\n`;
+    for (const v of spec.env) {
+      if (!env.includes(`\n${v.name}=`)) env += `\n# ${v.description}\n${v.name}=${(v as any).default || ''}\n`;
+    }
+    return env;
+  }
+
+  private generateDatabaseConfig(): string { return `import { Sequelize } from 'sequelize';\nimport dotenv from 'dotenv';\ndotenv.config();\n\nconst { DB_HOST = 'localhost', DB_PORT = '3306', DB_NAME, DB_USER = 'root', DB_PASSWORD = '', DB_DIALECT = 'mysql', NODE_ENV = 'development' } = process.env as Record<string,string>;\n\nif (!DB_NAME) { throw new Error('DB_NAME environment variable is required'); }\n\nconst sequelize = new Sequelize({\n  host: DB_HOST,\n  port: parseInt(DB_PORT, 10),\n  database: DB_NAME,\n  username: DB_USER,\n  password: DB_PASSWORD,\n  dialect: DB_DIALECT as any,\n  logging: NODE_ENV === 'development' ? console.log : false,\n  pool: { max: 5, min: 0, acquire: 30000, idle: 10000 },\n  define: { timestamps: true, underscored: true, paranoid: true },\n});\n\nexport { sequelize };\n\nexport const connectDatabase = async (): Promise<void> => {\n  try {\n    await sequelize.authenticate();\n    console.log('✅ Database connection established successfully.');\n    if (NODE_ENV === 'development') {\n      await sequelize.sync({ alter: true });\n      console.log('📊 Database models synchronized.');\n    }\n  } catch (error) {\n    console.error('❌ Unable to connect to the database:', error);\n    throw error;\n  }\n};\n`; }
+
+  private generateServerFile(spec: EnhancedSpec): string { return `import app from './app.js';\nimport { connectDatabase } from './config/database.js';\n\nconst PORT = process.env.PORT || 3000;\n\nconst startServer = async (): Promise<void> => {\n  try {\n    await connectDatabase();\n    const server = app.listen(PORT, () => {\n      console.log(\`🚀 ${spec.metadata.name} server running on port \${PORT}\`);\n      console.log(\`🔗 API Base URL: http://localhost:\${PORT}/api\`);\n    });\n    process.on('SIGTERM', () => { console.log('SIGTERM received'); server.close(() => process.exit(0)); });\n    process.on('SIGINT', () => { console.log('SIGINT received'); server.close(() => process.exit(0)); });\n  } catch (error) { console.error('Failed to start server:', error); process.exit(1); }\n};\n\nprocess.on('unhandledRejection', (err: any) => { console.error('Unhandled Rejection:', err); process.exit(1); });\nprocess.on('uncaughtException', (err: Error) => { console.error('Uncaught Exception:', err); process.exit(1); });\n\nstartServer();\n`; }
+
+  private generateAppFile(): string { return `import express from 'express';\nimport cors from 'cors';\nimport helmet from 'helmet';\nimport compression from 'compression';\nimport morgan from 'morgan';\nimport rateLimit from 'express-rate-limit';\n\nimport routes from './routes/index.js';\nimport { errorHandler, notFound } from './middleware/errorHandler.js';\n\nconst app = express();\n\napp.use(helmet());\napp.use(cors({ origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:3000'], credentials: true }));\nconst limiter = rateLimit({ windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10), max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100', 10) });\napp.use('/api', limiter);\napp.use(express.json({ limit: '10mb' }));\napp.use(express.urlencoded({ extended: true, limit: '10mb' }));\napp.use(compression());\napp.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));\napp.set('trust proxy', 1);\n\napp.use('/api', routes);\napp.get('/health', (_req, res) => res.status(200).json({ success: true, message: 'Service is healthy', timestamp: new Date().toISOString() }));\napp.use(notFound);\napp.use(errorHandler);\n\nexport default app;\n`; }
+
+  private generateModelsIndex(spec: EnhancedSpec): string {
+    const imports = spec.entities.map((e) => `import { ${e.name} } from './${e.name}.js';`).join('\n');
+    const exports = spec.entities.map((e) => e.name).join(',\n  ');
+    const assoc = spec.entities.map((e) => `  ${e.name}.associate({ ${spec.entities.map(s => s.name).join(', ')} });`).join('\n');
+    return `import { sequelize } from '../config/database.js';\n${imports}\n\nconst initializeAssociations = (): void => {\n${assoc}\n};\n\nexport {\n  sequelize,\n  ${exports}\n};\n\nexport { initializeAssociations };\n\nexport const syncDatabase = async (): Promise<void> => {\n  try {\n    await sequelize.authenticate();\n    initializeAssociations();\n  } catch (error) {\n    console.error('Unable to connect to the database:', error);\n    throw error;\n  }\n};\n`;
+  }
+
+  private generateProfessionalController(resource: any, spec: EnhancedSpec): string {
+    const resourceName = resource.resource;
+    const modelName = resourceName.charAt(0).toUpperCase() + resourceName.slice(1);
+    const serviceName = `${modelName}Service`;
+    return `import { Request, Response } from 'express';\nimport { ${serviceName} } from '../services/${resourceName}Service.js';\nimport { catchAsync } from '../utils/catchAsync.js';\nimport { AppError } from '../utils/AppError.js';\nimport { successResponse, paginatedResponse } from '../utils/response.js';\n\nexport class ${modelName}Controller {\n  private ${resourceName}Service: ${serviceName};\n  constructor() { this.${resourceName}Service = new ${serviceName}(); }\n  ${resource.operations.includes('list') ? `getAll = catchAsync(async (req: Request, res: Response) => {\n    const page = parseInt(req.query.page as string) || 1;\n    const limit = parseInt(req.query.limit as string) || 10;\n    const sortBy = (req.query.sortBy as string) || 'createdAt';\n    const sortOrder = ((req.query.sortOrder as string) || 'DESC').toUpperCase() as 'ASC' | 'DESC';\n    const search = (req.query.search as string) || '';\n    const filters: any = { ...req.query }; delete filters.page; delete filters.limit; delete filters.sortBy; delete filters.sortOrder; delete filters.search;\n    const result = await this.${resourceName}Service.findAll({ page, limit, sortBy, sortOrder, search, filters });\n    paginatedResponse(res, result, '${modelName}s retrieved successfully');\n  });` : ''}\n  ${resource.operations.includes('get') ? `getById = catchAsync(async (req: Request, res: Response) => {\n    const { id } = req.params;\n    const ${resourceName} = await this.${resourceName}Service.findById(id);\n    if (!${resourceName}) throw new AppError('${modelName} not found', 404);\n    successResponse(res, ${resourceName}, '${modelName} retrieved successfully');\n  });` : ''}\n  ${resource.operations.includes('create') ? `create = catchAsync(async (req: Request, res: Response) => {\n    if (req.user?.id) req.body.createdBy = req.user.id;\n    const ${resourceName} = await this.${resourceName}Service.create(req.body);\n    successResponse(res, ${resourceName}, '${modelName} created successfully', 201);\n  });` : ''}\n  ${resource.operations.includes('update') ? `update = catchAsync(async (req: Request, res: Response) => {\n    const { id } = req.params;\n    if (req.user?.id) req.body.updatedBy = req.user.id;\n    const ${resourceName} = await this.${resourceName}Service.update(id, req.body);\n    successResponse(res, ${resourceName}, '${modelName} updated successfully');\n  });` : ''}\n  ${resource.operations.includes('delete') ? `delete = catchAsync(async (req: Request, res: Response) => {\n    const { id } = req.params;\n    await this.${resourceName}Service.delete(id);\n    successResponse(res, null, '${modelName} deleted successfully');\n  });` : ''}\n  ${resource.operations.includes('search') ? `search = catchAsync(async (req: Request, res: Response) => {\n    const { query, filters } = req.body;\n    const result = await this.${resourceName}Service.search(query, filters);\n    successResponse(res, result, 'Search completed successfully');\n  });` : ''}\n  bulkCreate = catchAsync(async (req: Request, res: Response) => { const { items } = req.body; const result = await this.${resourceName}Service.bulkCreate(items); successResponse(res, result, '${modelName}s created successfully', 201); });\n  bulkUpdate = catchAsync(async (req: Request, res: Response) => { const { ids, updates } = req.body; const result = await this.${resourceName}Service.bulkUpdate(ids, updates); successResponse(res, result, '${modelName}s updated successfully'); });\n  bulkDelete = catchAsync(async (req: Request, res: Response) => { const { ids } = req.body; await this.${resourceName}Service.bulkDelete(ids); successResponse(res, null, '${modelName}s deleted successfully'); });\n}\n`;
+  }
+
+  private generateService(resource: any, spec: EnhancedSpec): string {
+    const resourceName = resource.resource;
+    const modelName = resourceName.charAt(0).toUpperCase() + resourceName.slice(1);
+    return `import { Op, FindOptions, WhereOptions } from 'sequelize';\nimport { ${modelName} } from '../models/${modelName}.js';\nimport { AppError } from '../utils/AppError.js';\n\ninterface PaginationOptions { page: number; limit: number; sortBy?: string; sortOrder?: 'ASC' | 'DESC'; search?: string; filters?: Record<string, any>; }\ninterface PaginatedResult<T> { items: T[]; pagination: { page: number; limit: number; total: number; totalPages: number; hasNextPage: boolean; hasPreviousPage: boolean; }; }\n\nexport class ${modelName}Service {\n  async findAll(options: PaginationOptions): Promise<PaginatedResult<${modelName}>> {\n    const { page, limit, sortBy = 'createdAt', sortOrder = 'DESC', search, filters = {} } = options;\n    const offset = (page - 1) * limit;\n    const where: WhereOptions = { ...filters };\n    if (search) { const searchFields = ['name','title','description']; where[Op.or] = searchFields.map(f => ({ [f]: { [Op.like]: \`%\${search}%\` } })); }\n    const findOptions: FindOptions = { where, limit, offset, order: [[sortBy as string, sortOrder]] };\n    const { count, rows } = await ${modelName}.findAndCountAll(findOptions);\n    return { items: rows, pagination: { page, limit, total: count, totalPages: Math.ceil(count/limit), hasNextPage: page < Math.ceil(count/limit), hasPreviousPage: page > 1 } };\n  }\n  async findById(id: string): Promise<${modelName} | null> { return ${modelName}.findByPk(id); }\n  async findOne(conditions: WhereOptions): Promise<${modelName} | null> { return ${modelName}.findOne({ where: conditions }); }\n  async create(data: any): Promise<${modelName}> { if (!data) throw new AppError('Data is required', 400); return ${modelName}.create(data); }\n  async update(id: string, data: any): Promise<${modelName}> { const item = await this.findById(id); if (!item) throw new AppError('${modelName} not found', 404); await item.update(data); await item.reload(); return item; }\n  async delete(id: string): Promise<void> { const item = await this.findById(id); if (!item) throw new AppError('${modelName} not found', 404); await item.destroy(); }\n  async bulkCreate(items: any[]): Promise<${modelName}[]> { return ${modelName}.bulkCreate(items); }\n  async bulkUpdate(ids: string[], updates: any): Promise<number> { const [affected] = await ${modelName}.update(updates, { where: { id: { [Op.in]: ids } } }); return affected; }\n  async bulkDelete(ids: string[]): Promise<number> { return ${modelName}.destroy({ where: { id: { [Op.in]: ids } } }); }\n  async search(query: string, filters: Record<string, any> = {}): Promise<${modelName}[]> { return ${modelName}.findAll({ where: { ...filters, [Op.or]: [ { name: { [Op.like]: \`%\${query}%\` } }, { description: { [Op.like]: \`%\${query}%\` } } ] }, limit: 50 }); }\n}\n`;
+  }
+
+  private generateAuthMiddleware(spec: EnhancedSpec): string {
+    return `import { Request, Response, NextFunction } from 'express';\nimport jwt from 'jsonwebtoken';\nimport { AppError } from '../utils/AppError.js';\n\ndeclare global { namespace Express { interface Request { user?: any; token?: string; } } }\n\nexport const authenticate = async (req: Request, res: Response, next: NextFunction) => {\n  const authHeader = req.headers.authorization;\n  let token: string | undefined;\n  if (authHeader && authHeader.startsWith('Bearer ')) token = authHeader.substring(7);\n  if (!token) return next(new AppError('Access denied. No token provided.', 401));\n  try {\n    const secret = process.env.JWT_SECRET;\n    if (!secret) return next(new AppError('JWT secret not configured', 500));\n    const decoded = jwt.verify(token, secret) as { userId: string; iat: number; exp: number };\n    (req as any).user = { id: decoded.userId, role: 'user', isActive: true };\n    req.token = token;\n    next();\n  } catch (e: any) { if (e.name === 'TokenExpiredError') next(new AppError('Token has expired', 401)); else next(new AppError('Invalid token', 401)); }\n};\n\nexport const optionalAuth = async (req: Request, res: Response, next: NextFunction) => {\n  const authHeader = req.headers.authorization;\n  if (authHeader?.startsWith('Bearer ')) { try { const token = authHeader.substring(7); const secret = process.env.JWT_SECRET; if (secret) { const decoded = jwt.verify(token, secret) as any; (req as any).user = { id: decoded.userId, role: 'user', isActive: true }; req.token = token; } } catch {} }\n  next();\n};\n\nexport const authorize = (...roles: string[]) => { return (req: Request, _res: Response, next: NextFunction) => { if (!req.user) return next(new AppError('Authentication required.', 401)); const userRoles = Array.isArray((req.user as any).roles) ? (req.user as any).roles : [(req.user as any).role || 'user']; const has = roles.some(r => userRoles.includes(r)); if (!has) return next(new AppError('Access denied. Insufficient permissions.', 403)); next(); }; };\n\nexport const requirePermission = (_resource: string, _action: string) => { return (req: Request, _res: Response, next: NextFunction) => { if (!req.user) return next(new AppError('Authentication required.', 401)); next(); }; };\n`;
+  }
+
+  private generateValidationMiddleware(): string { return `import { Request, Response, NextFunction } from 'express';\nimport { validationResult, ValidationChain } from 'express-validator';\nimport { AppError } from '../utils/AppError.js';\n\nexport const handleValidationErrors = (req: Request, _res: Response, _next: NextFunction) => {\n  const errors = validationResult(req);\n  if (!errors.isEmpty()) { const msgs = errors.array().map(e => ({ field: e.param, message: e.msg, value: e.value })); throw new AppError('Validation failed', 400, msgs); }\n  _next();\n};\n\nexport const validate = (validations: ValidationChain[]) => { return async (req: Request, res: Response, next: NextFunction) => { await Promise.all(validations.map(v => v.run(req))); handleValidationErrors(req, res, next); }; };\n\nexport const sanitizeBody = (allowed: string[]) => { return (req: Request, _res: Response, next: NextFunction) => { if (req.body && typeof req.body === 'object') { const b: any = {}; allowed.forEach(f => { if (Object.prototype.hasOwnProperty.call(req.body, f)) b[f] = req.body[f]; }); req.body = b; } next(); }; };\n\nexport const validatePagination = (req: Request, _res: Response, next: NextFunction) => { const page = parseInt(req.query.page as string) || 1; const limit = parseInt(req.query.limit as string) || 10; if (page < 1) throw new AppError('Page must be greater than 0', 400); if (limit < 1 || limit > 100) throw new AppError('Limit must be between 1 and 100', 400); req.query.page = page.toString(); req.query.limit = limit.toString(); next(); };\n`; }
+
+  private generateErrorMiddleware(): string {
+    return `import { Request, Response, NextFunction } from 'express';
+import { AppError } from '../utils/AppError.js';
+
+export class CustomError extends Error {
+  statusCode: number;
+  status: string;
+  isOperational: boolean;
+  errors?: any[];
+
+  constructor(message: string, statusCode: number = 500, errors?: any[]) {
+    super(message);
+    this.statusCode = statusCode;
+    this.status = \`\${statusCode}\`.startsWith('4') ? 'fail' : 'error';
+    this.isOperational = true;
+    this.errors = errors;
+    Error.captureStackTrace(this, this.constructor);
+  }
+}
+
+const sendErrorDev = (err: CustomError, res: Response) => {
+  res.status(err.statusCode).json({
+    success: false,
+    error: err,
+    message: err.message,
+    stack: err.stack,
+    errors: err.errors
+  });
+};
+
+const sendErrorProd = (err: CustomError, res: Response) => {
+  if (err.isOperational) {
+    res.status(err.statusCode).json({
+      success: false,
+      message: err.message,
+      errors: err.errors
+    });
+  } else {
+    console.error('ERROR 💥', err);
+    res.status(500).json({
+      success: false,
+      message: 'Something went wrong!'
+    });
+  }
+};
+
+export const errorHandler = (
+  err: any,
+  _req: Request,
+  res: Response,
+  _next: NextFunction
+): void => {
+  err.statusCode = err.statusCode || 500;
+  err.status = err.status || 'error';
+
+  if (process.env.NODE_ENV === 'development') {
+    sendErrorDev(err, res);
+  } else {
+    sendErrorProd(err, res);
+  }
+};
+
+export const notFound = (
+  req: Request,
+  _res: Response,
+  next: NextFunction
+): void => {
+  next(new CustomError(\`Route \${req.originalUrl} not found\`, 404));
+};
+
+export const asyncHandler = (fn: Function) => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    Promise.resolve(fn(req, res, next)).catch(next);
+  };
+};
+`;
+  }
+
+  private generateSequelizeModel(entity: any, spec: EnhancedSpec): string {
+    const fieldLines = entity.fields.map((f: any) => {
+      let t = 'DataTypes.STRING';
+      const opts: string[] = [];
+      switch (f.type) {
+        case 'uuid': t = 'DataTypes.UUID'; if (f.name === 'id') { opts.push('primaryKey: true'); opts.push('defaultValue: DataTypes.UUIDV4'); } break;
+        case 'string': t = f.validation?.maxLength ? `DataTypes.STRING(${f.validation.maxLength})` : 'DataTypes.STRING'; break;
+        case 'text': t = 'DataTypes.TEXT'; break;
+        case 'number': t = 'DataTypes.INTEGER'; break;
+        case 'decimal': t = 'DataTypes.DECIMAL(10, 2)'; break;
+        case 'boolean': t = 'DataTypes.BOOLEAN'; break;
+        case 'date': t = 'DataTypes.DATE'; break;
+        case 'array': case 'object': case 'json': t = 'DataTypes.JSON'; break;
+      }
+      if (!f.required && f.name !== 'id') opts.push('allowNull: true'); else if (f.name !== 'id') opts.push('allowNull: false');
+      if (f.unique) opts.push('unique: true');
+      const vals: string[] = [];
+      if (f.validation?.email) vals.push('isEmail: true');
+      if (f.validation?.min && f.type === 'number') vals.push(`min: ${f.validation.min}`);
+      if (f.validation?.max && f.type === 'number') vals.push(`max: ${f.validation.max}`);
+      if (vals.length) opts.push(`validate: { ${vals.join(', ')} }`);
+      const optStr = opts.length ? `,\n      { ${opts.join(', ')} }` : '';
+      return `    ${f.name}: {\n      type: ${t}${optStr}\n    }`;
+    }).join(',\n');
+
+    const indexes = (entity.indexes && entity.indexes.length)
+      ? entity.indexes.map((idx: any) => `      { fields: [${idx.fields.map((f: string) => `'${f}'`).join(', ')}]${idx.unique ? ',\n        unique: true' : ''} }`).join(',\n')
+      : '      // Add custom indexes here';
+
+    return `import { DataTypes, Model, Optional } from 'sequelize';\nimport { sequelize } from '../config/database.js';\n\nexport interface ${entity.name}Attributes {\n${entity.fields.map((f: any) => `  ${f.name}: ${this.getTypeScriptType(f.type)};`).join('\n')}\n  readonly createdAt: Date;\n  readonly updatedAt: Date;\n  readonly deletedAt?: Date;\n}\n\nexport interface ${entity.name}CreationAttributes extends Optional<${entity.name}Attributes, 'id' | 'createdAt' | 'updatedAt' | 'deletedAt'> {}\n\nclass ${entity.name} extends Model<${entity.name}Attributes, ${entity.name}CreationAttributes> implements ${entity.name}Attributes {\n${entity.fields.map((f: any) => `  public ${f.name}!: ${this.getTypeScriptType(f.type)};`).join('\n')}\n  public readonly createdAt!: Date; public readonly updatedAt!: Date; public readonly deletedAt!: Date;\n  public static associate(models: any): void { /* define associations here */ }\n}\n\n${entity.name}.init({\n${fieldLines}\n  }, {\n    sequelize,\n    modelName: '${entity.name}',\n    tableName: '${entity.name.toLowerCase()}s',\n    timestamps: true, paranoid: true, underscored: true,\n    indexes: [\n${indexes}\n    ],\n  });\n\nexport { ${entity.name} };\nexport default ${entity.name};\n`;
+  }
+}
+
 // HTTP server setup
 const app = express();
 app.use(cors({
@@ -2613,6 +3297,93 @@ app.post('/api/scaffold', async (req: Request, res: Response) => {
   }
 });
 
+// Enhanced v2 endpoints using ProfessionalBackendGenerator
+app.post('/api/v2/generate-spec', optionalAuth, enforceUsageLimit, async (req: any, res: Response) => {
+  try {
+    const { prompt } = req.body;
+    
+    if (!prompt || typeof prompt !== 'string') {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Prompt is required and must be a string' 
+      });
+    }
+
+    const generator = new ProfessionalBackendGenerator();
+    const spec = await generator.generateSpec(prompt);
+    
+    // Save to history if user is authenticated
+    if (req.user) {
+      try {
+        await History.create({
+          user_id: req.user.id,
+          prompt,
+          spec,
+          project_name: spec.metadata?.name || `backend-${spec.stack.language}-${Date.now()}`,
+          stack_language: spec.stack.language,
+          stack_framework: spec.stack.framework,
+          entities_count: spec.entities?.length || 0,
+        });
+      } catch (historyError) {
+        console.error('Failed to save to history:', historyError);
+        // Don't fail the request if history saving fails
+      }
+    }
+
+    // Increment usage if subscription is present
+    if (req.subscription) {
+      try {
+        await req.subscription.increment('used_requests');
+      } catch (incErr) {
+        console.error('Failed to increment usage:', incErr);
+      }
+    }
+    
+    res.json({
+      success: true,
+      spec,
+      message: 'Professional backend specification generated successfully'
+    });
+  } catch (error) {
+    console.error('Enhanced generation error:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to generate specification', 
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+app.post('/api/v2/scaffold', async (req: Request, res: Response) => {
+  try {
+    const { spec } = req.body;
+    
+    // Validate the spec using enhanced schema
+    const validatedSpec = EnhancedSpecSchema.parse(spec);
+    
+    // Generate the project using professional generator
+    const codeGenerator = new ProfessionalCodeGenerator();
+    const zipBuffer = await codeGenerator.generateProject(validatedSpec);
+    
+    // Set headers for download
+    const projectName = validatedSpec.metadata.name.toLowerCase().replace(/\s+/g, '-');
+    const fileName = `${projectName}-backend-${Date.now()}.zip`;
+    
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.setHeader('Content-Length', zipBuffer.length);
+    
+    res.send(zipBuffer);
+  } catch (error) {
+    console.error('Enhanced scaffolding error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to generate project',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 // Legacy endpoints for backward compatibility
 app.post('/spec', optionalAuth, enforceUsageLimit, async (req: any, res: Response) => {
   const body = req.body as GenerationRequest;
@@ -2678,6 +3449,7 @@ async function startServer() {
       console.log(`🚀 EaseArch Backend Generator listening on http://localhost:${port}`);
       console.log('✨ Features:');
       console.log('   - AI-powered backend generation with Gemini');
+      console.log('   - Professional v2 endpoints with enhanced architecture');
       console.log('   - User authentication and profile management');
       console.log('   - History tracking and download management');
       console.log('   - MySQL database with Sequelize ORM');
@@ -2685,6 +3457,12 @@ async function startServer() {
       console.log('   - Comprehensive project scaffolding');
       console.log('   - Production-ready Node.js and Python backends');
       console.log('   - Automatic ZIP file downloads');
+      console.log('');
+      console.log('🔗 API Endpoints:');
+      console.log('   - /api/v2/generate-spec - Enhanced specification generation');
+      console.log('   - /api/v2/scaffold - Professional project scaffolding');
+      console.log('   - /api/generate-spec - Legacy specification generation');
+      console.log('   - /api/scaffold - Legacy project scaffolding');
     });
   } catch (error) {
     console.error('Failed to start server:', error);

@@ -2605,43 +2605,80 @@ class ProfessionalBackendGenerator {
   private geminiApiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
 
   async generateSpec(prompt: string): Promise<EnhancedSpec> {
-    const systemPrompt = `You are an expert backend architect. Generate a comprehensive, production-ready backend specification.
+    const systemPrompt = `You are an expert backend architect specializing in complex domain applications. Generate a comprehensive, production-ready backend specification.
 
 CRITICAL REQUIREMENTS:
-1. Use modern Node.js/TypeScript stack with Express and Sequelize/Prisma
-2. Include comprehensive authentication with JWT and bcrypt
-3. Add proper error handling, validation, and security middleware
-4. Generate clean, modular architecture (controllers, services, middleware, routes)
-5. Include environment configuration and professional project structure
-6. Add features like rate limiting, CORS, compression, logging
-7. Generate proper TypeScript types and interfaces
-8. Include database migrations and seed files
-9. Add Docker support and deployment configuration
-10. Generate professional README and documentation
-`;
+1. Analyze the user's prompt carefully and identify ALL entities, relationships, and business logic
+2. For betting/gambling apps: Include User, Match, Odds, Bet, Transaction, Wallet entities
+3. For e-commerce: Include User, Product, Order, Cart, Payment, Category entities  
+4. For social apps: Include User, Post, Comment, Like, Follow, Message entities
+5. For any app: Always include User management with authentication
+6. Generate ALL entities mentioned in the prompt with proper relationships
+7. Use modern Node.js/TypeScript stack with Express and Sequelize
+8. Include comprehensive authentication with JWT and bcrypt
+9. Add proper error handling, validation, and security middleware
+10. Generate clean, modular architecture (controllers, services, middleware, routes)
+11. Include environment configuration and professional project structure
+12. Add features like rate limiting, CORS, compression, logging
+13. Generate proper TypeScript types and interfaces
+14. Include database migrations and seed files
+15. Add Docker support and deployment configuration
+16. Generate professional README and documentation
+
+ENTITY GENERATION RULES:
+- Always generate a complete set of entities based on the domain
+- Include proper relationships between entities (oneToMany, manyToOne, manyToMany)
+- Add appropriate fields for each entity (id, timestamps, domain-specific fields)
+- Include validation rules for each field
+- Generate API endpoints for all entities with full CRUD operations
+- Add proper authentication and authorization middleware
+
+EXAMPLE FOR BETTING APP:
+- User: id, email, password, firstName, lastName, balance, role, isActive
+- Match: id, homeTeam, awayTeam, startTime, status, result, createdAt
+- Odds: id, matchId, marketType, oddsValue, isActive
+- Bet: id, userId, matchId, oddsId, amount, potentialWin, status, createdAt
+- Transaction: id, userId, type, amount, balance, description, createdAt
+
+Return ONLY a valid JSON object matching the EnhancedSpecSchema.`;
 
     try {
+      console.log('🤖 Calling Gemini API for enhanced spec generation...');
       const response = await fetch(`${this.geminiApiUrl}?key=${this.geminiApiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: `${systemPrompt}\n\nUser Request: ${prompt}` }] }],
-          generationConfig: { temperature: 0.1, topK: 40, topP: 0.95, maxOutputTokens: 8192 }
+          generationConfig: { temperature: 0.2, topK: 40, topP: 0.95, maxOutputTokens: 16384 }
         })
       });
 
-      if (!response.ok) throw new Error(`Gemini API Error: ${response.status}`);
+      if (!response.ok) {
+        console.error(`Gemini API Error: ${response.status} ${response.statusText}`);
+        throw new Error(`Gemini API Error: ${response.status}`);
+      }
+      
       const data = await response.json();
       const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!generatedText) throw new Error('No text generated');
+      if (!generatedText) {
+        console.error('No text generated from Gemini API');
+        throw new Error('No text generated');
+      }
 
+      console.log('📝 Raw Gemini response length:', generatedText.length);
       const cleaned = this.cleanJsonResponse(generatedText);
+      console.log('🧹 Cleaned JSON length:', cleaned.length);
+      
       const parsed = JSON.parse(cleaned);
+      console.log('✅ Parsed JSON successfully, entities count:', parsed.entities?.length || 0);
+      
       const validated = EnhancedSpecSchema.parse(parsed);
+      console.log('✅ Validated spec successfully');
       return this.enhance(validated);
     } catch (err) {
-      console.error('Professional generation failed, using fallback:', err);
-      return this.fallbackSpec();
+      console.error('❌ Professional generation failed:', err);
+      console.log('🔄 Using intelligent fallback based on prompt analysis...');
+      return this.generateIntelligentFallback(prompt);
     }
   }
 
@@ -2653,44 +2690,226 @@ CRITICAL REQUIREMENTS:
     } as EnhancedSpec;
   }
 
-  private fallbackSpec(): EnhancedSpec {
+  private generateIntelligentFallback(prompt: string): EnhancedSpec {
+    const lowerPrompt = prompt.toLowerCase();
+    console.log('🔍 Analyzing prompt for intelligent fallback...');
+    
+    // Detect application type and generate appropriate entities
+    let entities: any[] = [];
+    let api: any[] = [];
+    let features: any = {};
+    
+    // Always include User entity
+    entities.push({
+      name: 'User',
+      fields: [
+        { name: 'id', type: 'uuid', required: true, unique: true },
+        { name: 'email', type: 'string', required: true, unique: true, validation: { email: true } },
+        { name: 'password', type: 'string', required: true },
+        { name: 'firstName', type: 'string', required: true },
+        { name: 'lastName', type: 'string', required: true },
+        { name: 'role', type: 'string', required: false, default: 'user' },
+        { name: 'isActive', type: 'boolean', required: false, default: true },
+        { name: 'createdAt', type: 'date', required: true },
+        { name: 'updatedAt', type: 'date', required: true }
+      ]
+    });
+    
+    api.push({ resource: 'users', operations: ['list','get','create','update','delete'], middleware: ['auth','validate'] });
+    
+    // Detect betting/gambling application
+    if (lowerPrompt.includes('betting') || lowerPrompt.includes('gambling') || lowerPrompt.includes('bet') || lowerPrompt.includes('odds') || lowerPrompt.includes('match')) {
+      console.log('🎰 Detected betting application, generating betting entities...');
+      
+      entities.push({
+        name: 'Match',
+        fields: [
+          { name: 'id', type: 'uuid', required: true, unique: true },
+          { name: 'homeTeam', type: 'string', required: true },
+          { name: 'awayTeam', type: 'string', required: true },
+          { name: 'startTime', type: 'date', required: true },
+          { name: 'status', type: 'string', required: true, default: 'upcoming' },
+          { name: 'result', type: 'string', required: false },
+          { name: 'createdAt', type: 'date', required: true },
+          { name: 'updatedAt', type: 'date', required: true }
+        ]
+      });
+      
+      entities.push({
+        name: 'Odds',
+        fields: [
+          { name: 'id', type: 'uuid', required: true, unique: true },
+          { name: 'matchId', type: 'uuid', required: true },
+          { name: 'marketType', type: 'string', required: true },
+          { name: 'oddsValue', type: 'decimal', required: true },
+          { name: 'isActive', type: 'boolean', required: true, default: true },
+          { name: 'createdAt', type: 'date', required: true },
+          { name: 'updatedAt', type: 'date', required: true }
+        ]
+      });
+      
+      entities.push({
+        name: 'Bet',
+        fields: [
+          { name: 'id', type: 'uuid', required: true, unique: true },
+          { name: 'userId', type: 'uuid', required: true },
+          { name: 'matchId', type: 'uuid', required: true },
+          { name: 'oddsId', type: 'uuid', required: true },
+          { name: 'amount', type: 'decimal', required: true },
+          { name: 'potentialWin', type: 'decimal', required: true },
+          { name: 'status', type: 'string', required: true, default: 'pending' },
+          { name: 'createdAt', type: 'date', required: true },
+          { name: 'updatedAt', type: 'date', required: true }
+        ]
+      });
+      
+      entities.push({
+        name: 'Transaction',
+        fields: [
+          { name: 'id', type: 'uuid', required: true, unique: true },
+          { name: 'userId', type: 'uuid', required: true },
+          { name: 'type', type: 'string', required: true },
+          { name: 'amount', type: 'decimal', required: true },
+          { name: 'balance', type: 'decimal', required: true },
+          { name: 'description', type: 'text', required: false },
+          { name: 'createdAt', type: 'date', required: true },
+          { name: 'updatedAt', type: 'date', required: true }
+        ]
+      });
+      
+      // Add balance to User entity for betting
+      entities[0].fields.push({ name: 'balance', type: 'decimal', required: false, default: 0 });
+      
+      api.push(
+        { resource: 'matches', operations: ['list','get','create','update','delete'], middleware: ['auth','validate'] },
+        { resource: 'odds', operations: ['list','get','create','update','delete'], middleware: ['auth','validate'] },
+        { resource: 'bets', operations: ['list','get','create','update','delete'], middleware: ['auth','validate'] },
+        { resource: 'transactions', operations: ['list','get','create'], middleware: ['auth','validate'] }
+      );
+      
+      features = { wallet: true, trading: true, notifications: true };
+    }
+    
+    // Detect e-commerce application
+    else if (lowerPrompt.includes('ecommerce') || lowerPrompt.includes('e-commerce') || lowerPrompt.includes('shop') || lowerPrompt.includes('product') || lowerPrompt.includes('order')) {
+      console.log('🛒 Detected e-commerce application, generating e-commerce entities...');
+      
+      entities.push({
+        name: 'Product',
+        fields: [
+          { name: 'id', type: 'uuid', required: true, unique: true },
+          { name: 'name', type: 'string', required: true },
+          { name: 'description', type: 'text', required: false },
+          { name: 'price', type: 'decimal', required: true },
+          { name: 'stock', type: 'number', required: true },
+          { name: 'categoryId', type: 'uuid', required: true },
+          { name: 'isActive', type: 'boolean', required: true, default: true },
+          { name: 'createdAt', type: 'date', required: true },
+          { name: 'updatedAt', type: 'date', required: true }
+        ]
+      });
+      
+      entities.push({
+        name: 'Category',
+        fields: [
+          { name: 'id', type: 'uuid', required: true, unique: true },
+          { name: 'name', type: 'string', required: true },
+          { name: 'description', type: 'text', required: false },
+          { name: 'isActive', type: 'boolean', required: true, default: true },
+          { name: 'createdAt', type: 'date', required: true },
+          { name: 'updatedAt', type: 'date', required: true }
+        ]
+      });
+      
+      entities.push({
+        name: 'Order',
+        fields: [
+          { name: 'id', type: 'uuid', required: true, unique: true },
+          { name: 'userId', type: 'uuid', required: true },
+          { name: 'total', type: 'decimal', required: true },
+          { name: 'status', type: 'string', required: true, default: 'pending' },
+          { name: 'shippingAddress', type: 'text', required: true },
+          { name: 'createdAt', type: 'date', required: true },
+          { name: 'updatedAt', type: 'date', required: true }
+        ]
+      });
+      
+      api.push(
+        { resource: 'products', operations: ['list','get','create','update','delete'], middleware: ['auth','validate'] },
+        { resource: 'categories', operations: ['list','get','create','update','delete'], middleware: ['auth','validate'] },
+        { resource: 'orders', operations: ['list','get','create','update','delete'], middleware: ['auth','validate'] }
+      );
+      
+      features = { payments: true, notifications: true };
+    }
+    
+    // Detect social application
+    else if (lowerPrompt.includes('social') || lowerPrompt.includes('post') || lowerPrompt.includes('comment') || lowerPrompt.includes('like') || lowerPrompt.includes('follow')) {
+      console.log('👥 Detected social application, generating social entities...');
+      
+      entities.push({
+        name: 'Post',
+        fields: [
+          { name: 'id', type: 'uuid', required: true, unique: true },
+          { name: 'userId', type: 'uuid', required: true },
+          { name: 'content', type: 'text', required: true },
+          { name: 'imageUrl', type: 'string', required: false },
+          { name: 'likesCount', type: 'number', required: false, default: 0 },
+          { name: 'commentsCount', type: 'number', required: false, default: 0 },
+          { name: 'createdAt', type: 'date', required: true },
+          { name: 'updatedAt', type: 'date', required: true }
+        ]
+      });
+      
+      entities.push({
+        name: 'Comment',
+        fields: [
+          { name: 'id', type: 'uuid', required: true, unique: true },
+          { name: 'userId', type: 'uuid', required: true },
+          { name: 'postId', type: 'uuid', required: true },
+          { name: 'content', type: 'text', required: true },
+          { name: 'createdAt', type: 'date', required: true },
+          { name: 'updatedAt', type: 'date', required: true }
+        ]
+      });
+      
+      api.push(
+        { resource: 'posts', operations: ['list','get','create','update','delete'], middleware: ['auth','validate'] },
+        { resource: 'comments', operations: ['list','get','create','update','delete'], middleware: ['auth','validate'] }
+      );
+      
+      features = { notifications: true, fileUpload: true };
+    }
+    
+    // Default fallback for other applications
+    else {
+      console.log('🔧 Using default fallback for generic application...');
+    }
+    
+    console.log(`✅ Generated ${entities.length} entities:`, entities.map(e => e.name));
+    
     return {
       stack: { language: 'node', framework: 'express', database: 'mysql', orm: 'sequelize', typescript: true },
-      entities: [
-        { name: 'User', fields: [
-          { name: 'id', type: 'uuid', required: true, unique: true },
-          { name: 'email', type: 'string', required: true, unique: true, validation: { email: true } },
-          {
-            name: 'password', type: 'string', required: true,
-            unique: false
-          },
-          {
-            name: 'firstName', type: 'string', required: true,
-            unique: false
-          },
-          {
-            name: 'lastName', type: 'string', required: true,
-            unique: false
-          },
-          {
-            name: 'createdAt', type: 'date', required: true,
-            unique: false
-          },
-          {
-            name: 'updatedAt', type: 'date', required: true,
-            unique: false
-          }
-        ]}
-      ],
+      entities,
       auth: { strategy: 'jwt', roles: ['user', 'admin'] },
-      api: [ { resource: 'users', operations: ['list','get','create','update','delete'], middleware: ['auth','validate'] } ],
+      api,
+      features,
       env: [
         { name: 'DATABASE_URL', description: 'Database connection string', required: true, type: 'url' },
         { name: 'JWT_SECRET', description: 'JWT secret key', required: true, type: 'secret' },
         { name: 'PORT', description: 'Server port', required: false, type: 'number', default: 3000 }
       ],
-      metadata: { name: 'professional-backend', description: 'Professional backend API', version: '1.0.0', license: 'MIT' }
+      metadata: { 
+        name: 'professional-backend', 
+        description: 'Professional backend API generated from prompt analysis', 
+        version: '1.0.0', 
+        license: 'MIT' 
+      }
     };
+  }
+
+  private fallbackSpec(): EnhancedSpec {
+    return this.generateIntelligentFallback('basic backend application');
   }
 
   private cleanJsonResponse(text: string): string {

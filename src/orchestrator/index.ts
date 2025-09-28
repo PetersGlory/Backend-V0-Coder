@@ -2694,34 +2694,277 @@ Return ONLY a valid JSON object matching the EnhancedSpecSchema.`;
     const lowerPrompt = prompt.toLowerCase();
     console.log('🔍 Analyzing prompt for intelligent fallback...');
     
-    // Detect application type and generate appropriate entities
-    let entities: any[] = [];
-    let api: any[] = [];
-    let features: any = {};
+    // Extract key concepts and entities from the prompt
+    const extractedEntities = this.extractEntitiesFromPrompt(prompt);
+    const detectedFeatures = this.detectFeaturesFromPrompt(lowerPrompt);
+    const businessDomain = this.detectBusinessDomain(lowerPrompt);
     
-    // Always include User entity
-    entities.push({
-      name: 'User',
-      fields: [
-        { name: 'id', type: 'uuid', required: true, unique: true },
-        { name: 'email', type: 'string', required: true, unique: true, validation: { email: true } },
-        { name: 'password', type: 'string', required: true },
-        { name: 'firstName', type: 'string', required: true },
-        { name: 'lastName', type: 'string', required: true },
-        { name: 'role', type: 'string', required: false, default: 'user' },
-        { name: 'isActive', type: 'boolean', required: false, default: true },
-        { name: 'createdAt', type: 'date', required: true },
-        { name: 'updatedAt', type: 'date', required: true }
-      ]
+    console.log(`🎯 Detected domain: ${businessDomain}`);
+    console.log(`📊 Extracted entities: ${extractedEntities.join(', ')}`);
+    console.log(`⚡ Features: ${Object.keys(detectedFeatures).join(', ')}`);
+    
+    // Generate comprehensive entity set
+    const entities = this.generateComprehensiveEntities(extractedEntities, businessDomain, lowerPrompt);
+    const api = this.generateAPIEndpoints(entities);
+    
+    console.log(`✅ Generated ${entities.length} entities:`, entities.map(e => e.name));
+    
+    return {
+      stack: { language: 'node', framework: 'express', database: 'mysql', orm: 'sequelize', typescript: true },
+      entities,
+      auth: { strategy: 'jwt', roles: ['user', 'admin'] },
+      api,
+      features: detectedFeatures,
+      env: [
+        { name: 'DATABASE_URL', description: 'Database connection string', required: true, type: 'url' },
+        { name: 'JWT_SECRET', description: 'JWT secret key', required: true, type: 'secret' },
+        { name: 'PORT', description: 'Server port', required: false, type: 'number', default: 3000 }
+      ],
+      metadata: { 
+        name: 'professional-backend', 
+        description: `Professional backend API for ${businessDomain}`, 
+        version: '1.0.0', 
+        license: 'MIT' 
+      }
+    };
+  }
+
+  private extractEntitiesFromPrompt(prompt: string): string[] {
+    const entities = new Set<string>();
+    
+    // Common entity patterns
+    const entityPatterns = [
+      // User management
+      { pattern: /\b(user|users|customer|customers|client|clients|member|members|account|accounts)\b/gi, entity: 'User' },
+      
+      // Content management
+      { pattern: /\b(post|posts|article|articles|blog|blogs|content|contents|story|stories)\b/gi, entity: 'Post' },
+      { pattern: /\b(comment|comments|review|reviews|feedback|feedbacks)\b/gi, entity: 'Comment' },
+      { pattern: /\b(category|categories|tag|tags|label|labels|topic|topics)\b/gi, entity: 'Category' },
+      
+      // E-commerce
+      { pattern: /\b(product|products|item|items|inventory|inventories|catalog|catalogs)\b/gi, entity: 'Product' },
+      { pattern: /\b(order|orders|purchase|purchases|transaction|transactions|payment|payments)\b/gi, entity: 'Order' },
+      { pattern: /\b(cart|carts|basket|baskets|wishlist|wishlists)\b/gi, entity: 'Cart' },
+      
+      // Betting/Gaming
+      { pattern: /\b(match|matches|game|games|event|events|fixture|fixtures)\b/gi, entity: 'Match' },
+      { pattern: /\b(bet|bets|wager|wagers|stake|stakes)\b/gi, entity: 'Bet' },
+      { pattern: /\b(odd|odds|rate|rates|price|prices)\b/gi, entity: 'Odds' },
+      
+      // Financial
+      { pattern: /\b(wallet|wallets|balance|balances|account|accounts|fund|funds)\b/gi, entity: 'Wallet' },
+      { pattern: /\b(transaction|transactions|payment|payments|deposit|deposits|withdrawal|withdrawals)\b/gi, entity: 'Transaction' },
+      
+      // Communication
+      { pattern: /\b(message|messages|chat|chats|conversation|conversations)\b/gi, entity: 'Message' },
+      { pattern: /\b(notification|notifications|alert|alerts|reminder|reminders)\b/gi, entity: 'Notification' },
+      
+      // Learning/Education
+      { pattern: /\b(course|courses|lesson|lessons|class|classes|module|modules)\b/gi, entity: 'Course' },
+      { pattern: /\b(quiz|quizzes|exam|exams|test|tests|assignment|assignments)\b/gi, entity: 'Quiz' },
+      
+      // Healthcare
+      { pattern: /\b(patient|patients|appointment|appointments|visit|visits)\b/gi, entity: 'Patient' },
+      { pattern: /\b(doctor|doctors|physician|physicians|practitioner|practitioners)\b/gi, entity: 'Doctor' },
+      
+      // Real Estate
+      { pattern: /\b(property|properties|listing|listings|house|houses|apartment|apartments)\b/gi, entity: 'Property' },
+      { pattern: /\b(booking|bookings|reservation|reservations|rental|rentals)\b/gi, entity: 'Booking' },
+      
+      // Project Management
+      { pattern: /\b(project|projects|task|tasks|milestone|milestones)\b/gi, entity: 'Project' },
+      { pattern: /\b(team|teams|group|groups|organization|organizations)\b/gi, entity: 'Team' },
+      
+      // Media/Entertainment
+      { pattern: /\b(video|videos|movie|movies|show|shows|episode|episodes)\b/gi, entity: 'Video' },
+      { pattern: /\b(playlist|playlists|album|albums|track|tracks)\b/gi, entity: 'Playlist' },
+      
+      // Events
+      { pattern: /\b(event|events|conference|conferences|meeting|meetings)\b/gi, entity: 'Event' },
+      { pattern: /\b(ticket|tickets|registration|registrations)\b/gi, entity: 'Ticket' }
+    ];
+    
+    // Extract entities using patterns
+    entityPatterns.forEach(({ pattern, entity }) => {
+      if (pattern.test(prompt)) {
+        entities.add(entity);
+      }
     });
     
-    api.push({ resource: 'users', operations: ['list','get','create','update','delete'], middleware: ['auth','validate'] });
+    // Always include User if not already present
+    if (!entities.has('User')) {
+      entities.add('User');
+    }
     
-    // Detect betting/gambling application
-    if (lowerPrompt.includes('betting') || lowerPrompt.includes('gambling') || lowerPrompt.includes('bet') || lowerPrompt.includes('odds') || lowerPrompt.includes('match')) {
-      console.log('🎰 Detected betting application, generating betting entities...');
+    return Array.from(entities);
+  }
+
+  private detectFeaturesFromPrompt(lowerPrompt: string): any {
+    const features: any = {};
+    
+    // Authentication & Security
+    if (lowerPrompt.includes('auth') || lowerPrompt.includes('login') || lowerPrompt.includes('register') || lowerPrompt.includes('user')) {
+      features.authentication = true;
+    }
+    
+    // Payment & Financial
+    if (lowerPrompt.includes('payment') || lowerPrompt.includes('money') || lowerPrompt.includes('price') || lowerPrompt.includes('cost') || 
+        lowerPrompt.includes('wallet') || lowerPrompt.includes('balance') || lowerPrompt.includes('transaction') || lowerPrompt.includes('bet')) {
+      features.payments = true;
+      features.wallet = true;
+    }
+    
+    // File Management
+    if (lowerPrompt.includes('upload') || lowerPrompt.includes('file') || lowerPrompt.includes('image') || lowerPrompt.includes('photo') || 
+        lowerPrompt.includes('document') || lowerPrompt.includes('media')) {
+      features.fileUpload = true;
+    }
+    
+    // Notifications
+    if (lowerPrompt.includes('notification') || lowerPrompt.includes('alert') || lowerPrompt.includes('email') || lowerPrompt.includes('sms') || 
+        lowerPrompt.includes('push') || lowerPrompt.includes('reminder')) {
+      features.notifications = true;
+      features.email = true;
+    }
+    
+    // Real-time features
+    if (lowerPrompt.includes('real-time') || lowerPrompt.includes('live') || lowerPrompt.includes('chat') || lowerPrompt.includes('message') || 
+        lowerPrompt.includes('stream') || lowerPrompt.includes('websocket')) {
+      features.realtime = true;
+    }
+    
+    // Analytics
+    if (lowerPrompt.includes('analytics') || lowerPrompt.includes('report') || lowerPrompt.includes('statistic') || lowerPrompt.includes('dashboard') || 
+        lowerPrompt.includes('metric') || lowerPrompt.includes('tracking')) {
+      features.analytics = true;
+    }
+    
+    // Trading/Gaming
+    if (lowerPrompt.includes('bet') || lowerPrompt.includes('trade') || lowerPrompt.includes('gamble') || lowerPrompt.includes('game') || 
+        lowerPrompt.includes('odds') || lowerPrompt.includes('match')) {
+      features.trading = true;
+      features.wallet = true;
+    }
+    
+    return features;
+  }
+
+  private detectBusinessDomain(lowerPrompt: string): string {
+    if (lowerPrompt.includes('betting') || lowerPrompt.includes('gambling') || lowerPrompt.includes('bet') || lowerPrompt.includes('odds')) {
+      return 'Betting Platform';
+    }
+    if (lowerPrompt.includes('ecommerce') || lowerPrompt.includes('e-commerce') || lowerPrompt.includes('shop') || lowerPrompt.includes('store')) {
+      return 'E-commerce Platform';
+    }
+    if (lowerPrompt.includes('social') || lowerPrompt.includes('community') || lowerPrompt.includes('network')) {
+      return 'Social Platform';
+    }
+    if (lowerPrompt.includes('learning') || lowerPrompt.includes('education') || lowerPrompt.includes('course') || lowerPrompt.includes('school')) {
+      return 'Learning Management System';
+    }
+    if (lowerPrompt.includes('healthcare') || lowerPrompt.includes('medical') || lowerPrompt.includes('patient') || lowerPrompt.includes('doctor')) {
+      return 'Healthcare Platform';
+    }
+    if (lowerPrompt.includes('real estate') || lowerPrompt.includes('property') || lowerPrompt.includes('rental')) {
+      return 'Real Estate Platform';
+    }
+    if (lowerPrompt.includes('project') || lowerPrompt.includes('management') || lowerPrompt.includes('task') || lowerPrompt.includes('team')) {
+      return 'Project Management System';
+    }
+    if (lowerPrompt.includes('media') || lowerPrompt.includes('video') || lowerPrompt.includes('streaming') || lowerPrompt.includes('entertainment')) {
+      return 'Media Platform';
+    }
+    if (lowerPrompt.includes('event') || lowerPrompt.includes('conference') || lowerPrompt.includes('meeting') || lowerPrompt.includes('booking')) {
+      return 'Event Management System';
+    }
+    return 'Business Application';
+  }
+
+  private generateComprehensiveEntities(extractedEntities: string[], businessDomain: string, lowerPrompt: string): any[] {
+    const entities: any[] = [];
+    
+    // Always start with User entity
+    entities.push(this.createUserEntity(lowerPrompt));
+    
+    // Generate entities based on extracted concepts
+    extractedEntities.forEach(entityName => {
+      if (entityName !== 'User') {
+        const entity = this.createEntityByType(entityName, lowerPrompt, businessDomain);
+        if (entity) {
+          entities.push(entity);
+        }
+      }
+    });
+    
+    // Add common supporting entities based on domain
+    this.addSupportingEntities(entities, businessDomain, lowerPrompt);
+    
+    return entities;
+  }
+
+  private createUserEntity(lowerPrompt: string): any {
+    const fields = [
+      { name: 'id', type: 'uuid', required: true, unique: true },
+      { name: 'email', type: 'string', required: true, unique: true, validation: { email: true } },
+      { name: 'password', type: 'string', required: true },
+      { name: 'firstName', type: 'string', required: true },
+      { name: 'lastName', type: 'string', required: true },
+      { name: 'role', type: 'string', required: false, default: 'user' },
+      { name: 'isActive', type: 'boolean', required: false, default: true },
+      { name: 'createdAt', type: 'date', required: true },
+      { name: 'updatedAt', type: 'date', required: true }
+    ];
+    
+    // Add domain-specific fields
+    if (lowerPrompt.includes('balance') || lowerPrompt.includes('wallet') || lowerPrompt.includes('money')) {
+      fields.push({ name: 'balance', type: 'decimal', required: false, default: false });
+    }
+    if (lowerPrompt.includes('phone') || lowerPrompt.includes('mobile')) {
+      fields.push({ name: 'phone', type: 'string', required: false });
+    }
+    if (lowerPrompt.includes('address') || lowerPrompt.includes('location')) {
+      fields.push({ name: 'address', type: 'text', required: false });
+    }
+    
+    return { name: 'User', fields };
+  }
+
+  private createEntityByType(entityName: string, lowerPrompt: string, businessDomain: string): any {
+    const entityTemplates: { [key: string]: () => any } = {
+      'Post': () => ({
+        name: 'Post',
+        fields: [
+          { name: 'id', type: 'uuid', required: true, unique: true },
+          { name: 'userId', type: 'uuid', required: true },
+          { name: 'title', type: 'string', required: true },
+          { name: 'content', type: 'text', required: true },
+          { name: 'imageUrl', type: 'string', required: false },
+          { name: 'likesCount', type: 'number', required: false, default: 0 },
+          { name: 'commentsCount', type: 'number', required: false, default: 0 },
+          { name: 'isPublished', type: 'boolean', required: false, default: true },
+          { name: 'createdAt', type: 'date', required: true },
+          { name: 'updatedAt', type: 'date', required: true }
+        ]
+      }),
       
-      entities.push({
+      'Product': () => ({
+        name: 'Product',
+        fields: [
+          { name: 'id', type: 'uuid', required: true, unique: true },
+          { name: 'name', type: 'string', required: true },
+          { name: 'description', type: 'text', required: false },
+          { name: 'price', type: 'decimal', required: true },
+          { name: 'stock', type: 'number', required: true },
+          { name: 'categoryId', type: 'uuid', required: true },
+          { name: 'imageUrl', type: 'string', required: false },
+          { name: 'isActive', type: 'boolean', required: true, default: true },
+          { name: 'createdAt', type: 'date', required: true },
+          { name: 'updatedAt', type: 'date', required: true }
+        ]
+      }),
+      
+      'Match': () => ({
         name: 'Match',
         fields: [
           { name: 'id', type: 'uuid', required: true, unique: true },
@@ -2733,22 +2976,9 @@ Return ONLY a valid JSON object matching the EnhancedSpecSchema.`;
           { name: 'createdAt', type: 'date', required: true },
           { name: 'updatedAt', type: 'date', required: true }
         ]
-      });
+      }),
       
-      entities.push({
-        name: 'Odds',
-        fields: [
-          { name: 'id', type: 'uuid', required: true, unique: true },
-          { name: 'matchId', type: 'uuid', required: true },
-          { name: 'marketType', type: 'string', required: true },
-          { name: 'oddsValue', type: 'decimal', required: true },
-          { name: 'isActive', type: 'boolean', required: true, default: true },
-          { name: 'createdAt', type: 'date', required: true },
-          { name: 'updatedAt', type: 'date', required: true }
-        ]
-      });
-      
-      entities.push({
+      'Bet': () => ({
         name: 'Bet',
         fields: [
           { name: 'id', type: 'uuid', required: true, unique: true },
@@ -2761,9 +2991,9 @@ Return ONLY a valid JSON object matching the EnhancedSpecSchema.`;
           { name: 'createdAt', type: 'date', required: true },
           { name: 'updatedAt', type: 'date', required: true }
         ]
-      });
+      }),
       
-      entities.push({
+      'Transaction': () => ({
         name: 'Transaction',
         fields: [
           { name: 'id', type: 'uuid', required: true, unique: true },
@@ -2772,43 +3002,117 @@ Return ONLY a valid JSON object matching the EnhancedSpecSchema.`;
           { name: 'amount', type: 'decimal', required: true },
           { name: 'balance', type: 'decimal', required: true },
           { name: 'description', type: 'text', required: false },
+          { name: 'status', type: 'string', required: true, default: 'completed' },
           { name: 'createdAt', type: 'date', required: true },
           { name: 'updatedAt', type: 'date', required: true }
         ]
-      });
+      }),
       
-      // Add balance to User entity for betting
-      entities[0].fields.push({ name: 'balance', type: 'decimal', required: false, default: 0 });
+      'Order': () => ({
+        name: 'Order',
+        fields: [
+          { name: 'id', type: 'uuid', required: true, unique: true },
+          { name: 'userId', type: 'uuid', required: true },
+          { name: 'total', type: 'decimal', required: true },
+          { name: 'status', type: 'string', required: true, default: 'pending' },
+          { name: 'shippingAddress', type: 'text', required: true },
+          { name: 'paymentMethod', type: 'string', required: false },
+          { name: 'createdAt', type: 'date', required: true },
+          { name: 'updatedAt', type: 'date', required: true }
+        ]
+      }),
       
-      api.push(
-        { resource: 'matches', operations: ['list','get','create','update','delete'], middleware: ['auth','validate'] },
-        { resource: 'odds', operations: ['list','get','create','update','delete'], middleware: ['auth','validate'] },
-        { resource: 'bets', operations: ['list','get','create','update','delete'], middleware: ['auth','validate'] },
-        { resource: 'transactions', operations: ['list','get','create'], middleware: ['auth','validate'] }
-      );
-      
-      features = { wallet: true, trading: true, notifications: true };
-    }
-    
-    // Detect e-commerce application
-    else if (lowerPrompt.includes('ecommerce') || lowerPrompt.includes('e-commerce') || lowerPrompt.includes('shop') || lowerPrompt.includes('product') || lowerPrompt.includes('order')) {
-      console.log('🛒 Detected e-commerce application, generating e-commerce entities...');
-      
-      entities.push({
-        name: 'Product',
+      'Category': () => ({
+        name: 'Category',
         fields: [
           { name: 'id', type: 'uuid', required: true, unique: true },
           { name: 'name', type: 'string', required: true },
           { name: 'description', type: 'text', required: false },
-          { name: 'price', type: 'decimal', required: true },
-          { name: 'stock', type: 'number', required: true },
-          { name: 'categoryId', type: 'uuid', required: true },
+          { name: 'isActive', type: 'boolean', required: true, default: true },
+          { name: 'createdAt', type: 'date', required: true },
+          { name: 'updatedAt', type: 'date', required: true }
+        ]
+      }),
+      
+      'Comment': () => ({
+        name: 'Comment',
+        fields: [
+          { name: 'id', type: 'uuid', required: true, unique: true },
+          { name: 'userId', type: 'uuid', required: true },
+          { name: 'postId', type: 'uuid', required: true },
+          { name: 'content', type: 'text', required: true },
+          { name: 'isApproved', type: 'boolean', required: false, default: true },
+          { name: 'createdAt', type: 'date', required: true },
+          { name: 'updatedAt', type: 'date', required: true }
+        ]
+      }),
+      
+      'Message': () => ({
+        name: 'Message',
+        fields: [
+          { name: 'id', type: 'uuid', required: true, unique: true },
+          { name: 'senderId', type: 'uuid', required: true },
+          { name: 'receiverId', type: 'uuid', required: true },
+          { name: 'content', type: 'text', required: true },
+          { name: 'isRead', type: 'boolean', required: false, default: false },
+          { name: 'createdAt', type: 'date', required: true },
+          { name: 'updatedAt', type: 'date', required: true }
+        ]
+      }),
+      
+      'Notification': () => ({
+        name: 'Notification',
+        fields: [
+          { name: 'id', type: 'uuid', required: true, unique: true },
+          { name: 'userId', type: 'uuid', required: true },
+          { name: 'title', type: 'string', required: true },
+          { name: 'message', type: 'text', required: true },
+          { name: 'type', type: 'string', required: true },
+          { name: 'isRead', type: 'boolean', required: false, default: false },
+          { name: 'createdAt', type: 'date', required: true },
+          { name: 'updatedAt', type: 'date', required: true }
+        ]
+      })
+    };
+    
+    return entityTemplates[entityName]?.() || null;
+  }
+
+  private addSupportingEntities(entities: any[], businessDomain: string, lowerPrompt: string): void {
+    const entityNames = entities.map(e => e.name);
+    
+    // Add common supporting entities based on domain and existing entities
+    if (businessDomain === 'Betting Platform' && !entityNames.includes('Odds')) {
+      entities.push({
+        name: 'Odds',
+        fields: [
+          { name: 'id', type: 'uuid', required: true, unique: true },
+          { name: 'matchId', type: 'uuid', required: true },
+          { name: 'marketType', type: 'string', required: true },
+          { name: 'oddsValue', type: 'decimal', required: true },
           { name: 'isActive', type: 'boolean', required: true, default: true },
           { name: 'createdAt', type: 'date', required: true },
           { name: 'updatedAt', type: 'date', required: true }
         ]
       });
-      
+    }
+    
+    if (businessDomain === 'E-commerce Platform' && !entityNames.includes('Cart')) {
+      entities.push({
+        name: 'Cart',
+        fields: [
+          { name: 'id', type: 'uuid', required: true, unique: true },
+          { name: 'userId', type: 'uuid', required: true },
+          { name: 'productId', type: 'uuid', required: true },
+          { name: 'quantity', type: 'number', required: true },
+          { name: 'createdAt', type: 'date', required: true },
+          { name: 'updatedAt', type: 'date', required: true }
+        ]
+      });
+    }
+    
+    // Add Category if we have content entities but no category
+    if ((entityNames.includes('Post') || entityNames.includes('Product')) && !entityNames.includes('Category')) {
       entities.push({
         name: 'Category',
         fields: [
@@ -2820,92 +3124,15 @@ Return ONLY a valid JSON object matching the EnhancedSpecSchema.`;
           { name: 'updatedAt', type: 'date', required: true }
         ]
       });
-      
-      entities.push({
-        name: 'Order',
-        fields: [
-          { name: 'id', type: 'uuid', required: true, unique: true },
-          { name: 'userId', type: 'uuid', required: true },
-          { name: 'total', type: 'decimal', required: true },
-          { name: 'status', type: 'string', required: true, default: 'pending' },
-          { name: 'shippingAddress', type: 'text', required: true },
-          { name: 'createdAt', type: 'date', required: true },
-          { name: 'updatedAt', type: 'date', required: true }
-        ]
-      });
-      
-      api.push(
-        { resource: 'products', operations: ['list','get','create','update','delete'], middleware: ['auth','validate'] },
-        { resource: 'categories', operations: ['list','get','create','update','delete'], middleware: ['auth','validate'] },
-        { resource: 'orders', operations: ['list','get','create','update','delete'], middleware: ['auth','validate'] }
-      );
-      
-      features = { payments: true, notifications: true };
     }
-    
-    // Detect social application
-    else if (lowerPrompt.includes('social') || lowerPrompt.includes('post') || lowerPrompt.includes('comment') || lowerPrompt.includes('like') || lowerPrompt.includes('follow')) {
-      console.log('👥 Detected social application, generating social entities...');
-      
-      entities.push({
-        name: 'Post',
-        fields: [
-          { name: 'id', type: 'uuid', required: true, unique: true },
-          { name: 'userId', type: 'uuid', required: true },
-          { name: 'content', type: 'text', required: true },
-          { name: 'imageUrl', type: 'string', required: false },
-          { name: 'likesCount', type: 'number', required: false, default: 0 },
-          { name: 'commentsCount', type: 'number', required: false, default: 0 },
-          { name: 'createdAt', type: 'date', required: true },
-          { name: 'updatedAt', type: 'date', required: true }
-        ]
-      });
-      
-      entities.push({
-        name: 'Comment',
-        fields: [
-          { name: 'id', type: 'uuid', required: true, unique: true },
-          { name: 'userId', type: 'uuid', required: true },
-          { name: 'postId', type: 'uuid', required: true },
-          { name: 'content', type: 'text', required: true },
-          { name: 'createdAt', type: 'date', required: true },
-          { name: 'updatedAt', type: 'date', required: true }
-        ]
-      });
-      
-      api.push(
-        { resource: 'posts', operations: ['list','get','create','update','delete'], middleware: ['auth','validate'] },
-        { resource: 'comments', operations: ['list','get','create','update','delete'], middleware: ['auth','validate'] }
-      );
-      
-      features = { notifications: true, fileUpload: true };
-    }
-    
-    // Default fallback for other applications
-    else {
-      console.log('🔧 Using default fallback for generic application...');
-    }
-    
-    console.log(`✅ Generated ${entities.length} entities:`, entities.map(e => e.name));
-    
-    return {
-      stack: { language: 'node', framework: 'express', database: 'mysql', orm: 'sequelize', typescript: true },
-      entities,
-      auth: { strategy: 'jwt', roles: ['user', 'admin'] },
-      api,
-      features,
-      env: [
-        { name: 'DATABASE_URL', description: 'Database connection string', required: true, type: 'url' },
-        { name: 'JWT_SECRET', description: 'JWT secret key', required: true, type: 'secret' },
-        { name: 'PORT', description: 'Server port', required: false, type: 'number', default: 3000 }
-      ],
-      metadata: { 
-        name: 'professional-backend', 
-        description: 'Professional backend API generated from prompt analysis', 
-        version: '1.0.0', 
-        license: 'MIT' 
-      }
-    };
+  }
+
+  private generateAPIEndpoints(entities: any[]): any[] {
+    return entities.map(entity => ({
+      resource: entity.name.toLowerCase() + 's',
+      operations: ['list', 'get', 'create', 'update', 'delete'],
+      middleware: ['auth', 'validate']
+    }));
   }
 
   private fallbackSpec(): EnhancedSpec {
